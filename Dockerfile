@@ -13,4 +13,4 @@ RUN npm install -g serve
 
 ENV PORT=8080
 
-CMD ["sh", "-c", "serve -s dist -l $PORT"]
+CMD ["sh", "-c", "serve -s dist -l ${PORT}"]
