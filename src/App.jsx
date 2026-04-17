@@ -3,6 +3,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import MotionSystem from "./components/MotionSystem";
+import ThemeToggle from "./components/ThemeToggle";
 import RoleSimulationPage from "./pages/RoleSimulationPage";
 import RoadmapOverviewPage from "./pages/RoadmapOverviewPage";
 import RoadmapStepPage from "./pages/RoadmapStepPage";
@@ -19,6 +20,8 @@ import { getRoleDetails } from "./lib/careerHelpers";
 import { getTranslations } from "./lib/i18n";
 import { getMergedRoadmap, isRoadmapComplete } from "./lib/roadmapHelpers";
 import { buildPath, getRouteStateFromPath } from "./lib/routes";
+
+const THEME_STORAGE_KEY = "career-metrics.theme-mode";
 
 function getCanonicalView(routeView, hasSession) {
   if (!hasSession) {
@@ -38,6 +41,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState("existing");
   const [selectedRole, setSelectedRole] = useState("Data Analyst");
   const [roadmapStepIndex, setRoadmapStepIndex] = useState(0);
+  const [themeMode, setThemeMode] = useState("dark");
 
   function syncWindowPath(view, stepIndex, replace = false) {
     const path = buildPath(view, { stepIndex });
@@ -55,6 +59,17 @@ export default function App() {
     setRoadmapStepIndex(stepIndex);
     syncWindowPath(view, stepIndex, replace);
   }
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    setThemeMode(storedTheme === "light" ? "light" : "dark");
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeMode;
+    document.body.dataset.theme = themeMode;
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     const session = getStoredSession();
@@ -255,6 +270,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-ink text-white">
       <MotionSystem />
+      <ThemeToggle
+        themeMode={themeMode}
+        onToggle={() => setThemeMode((current) => (current === "dark" ? "light" : "dark"))}
+      />
       <div className="app-shell relative overflow-hidden">
         <div className="absolute inset-0 bg-hero-radial" />
         <div className="grid-overlay absolute inset-0 opacity-40" />

@@ -17,7 +17,7 @@ export default function GlowButton({
       type={type}
       onClick={onClick}
       data-magnetic
-      className={`motion-button inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold tracking-[0.18em] transition duration-300 ${variants[variant]} ${className}`}
+      className={`motion-button inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold tracking-[0.18em] transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/50 ${variants[variant]} ${className}`}
     >
       {children}
     </button>

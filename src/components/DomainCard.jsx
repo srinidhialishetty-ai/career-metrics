@@ -34,8 +34,9 @@ export default function DomainCard({
     <button
       type="button"
       onClick={onClick}
+      data-magnetic
       className={`
-        group relative overflow-hidden rounded-2xl border transition-all duration-300
+        motion-panel group relative overflow-hidden rounded-2xl border transition-all duration-300
         ${isSelected 
           ? "border-cyan/50 bg-cyan/10 shadow-[0_0_30px_rgba(69,208,255,0.2)]" 
           : "border-white/10 bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.06]"

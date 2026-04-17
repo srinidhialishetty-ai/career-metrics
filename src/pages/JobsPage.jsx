@@ -72,10 +72,10 @@ export default function JobsPage({
           <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <SectionLabel>Completion Unlocked</SectionLabel>
-              <h1 className="mt-6 text-4xl font-semibold tracking-[-0.05em] text-white md:text-6xl">
+              <h1 className="motion-display mt-6 text-4xl font-semibold tracking-[-0.05em] text-white md:text-6xl">
                 Opportunities and Future Insights
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-mist">
+              <p className="motion-fade-up motion-delay-1 mt-5 max-w-2xl text-lg leading-8 text-mist">
                 You completed a verified milestone in {role?.name} within {getDomainName(roadmapDomain)}. The engine has now unlocked the most relevant opportunities, long-term salary outlook, market demand, and risk signals for this path.
               </p>
             </div>
@@ -123,7 +123,7 @@ export default function JobsPage({
             <GlassPanel className="p-6">
               <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Market Demand</p>
               <p className="mt-4 text-2xl font-semibold text-white">{demand.label}</p>
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+              <div className="progress-motion mt-4 h-3 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-[linear-gradient(90deg,#45d0ff,#7c5cff)]"
                   style={{ width: `${demand.value}%` }}

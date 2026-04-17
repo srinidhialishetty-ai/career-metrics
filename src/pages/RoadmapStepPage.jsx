@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import FeedbackPanel from "../components/FeedbackPanel";
 import GlassPanel from "../components/GlassPanel";
 import GlowButton from "../components/GlowButton";
 import SectionLabel from "../components/SectionLabel";
@@ -58,7 +59,8 @@ export default function RoadmapStepPage({
   const phase = roadmap.phases[stepIndex] || roadmap.phases[0];
   const phaseProgress = getPhaseProgress(phase, stepStates);
   const roadmapProgress = getRoadmapProgress(roadmap, stepStates);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toastState, setToastState] = useState(null);
+  const [milestonePanel, setMilestonePanel] = useState(null);
   const [draftLinks, setDraftLinks] = useState({});
   const fileInputRefs = useRef({});
   const allTasksComplete = phase.tasks.every((task) => getTaskStatus(stepStates, task.id) === "completed");
@@ -71,12 +73,12 @@ export default function RoadmapStepPage({
         return accumulator;
       }, {}),
     );
-  }, [stepStates, stepIndex]);
+  }, [stepStates, stepIndex, phase.tasks]);
 
-  function showToast(message) {
-    setToastMessage(message);
+  function showToast(title, body = "") {
+    setToastState({ title, body });
     window.setTimeout(() => {
-      setToastMessage("");
+      setToastState(null);
     }, 2800);
   }
 
@@ -107,10 +109,16 @@ export default function RoadmapStepPage({
     });
 
     if (finished) {
-      showToast("Excellent work. Your roadmap is complete.");
+      setMilestonePanel({
+        variant: "final",
+        title: "You've completed your learning path",
+        body: "Now it's time to step into real opportunities. The system is preparing your reward screen.",
+        actionLabel: "Open Opportunities",
+        onAction: onRoadmapComplete,
+      });
       window.setTimeout(() => {
         onRoadmapComplete();
-      }, 900);
+      }, 1500);
     }
 
     return {
@@ -130,7 +138,7 @@ export default function RoadmapStepPage({
       ...stepStates,
       [taskId]: verifyingState,
     });
-    showToast(pendingMessage);
+    showToast("Verification started", pendingMessage);
 
     window.setTimeout(() => {
       const result = persist({
@@ -140,14 +148,21 @@ export default function RoadmapStepPage({
           verificationStatus: STEP_VERIFICATION.VERIFIED,
         },
       });
-      showToast(successMessage);
+      showToast(successMessage, "Your verified progress has been locked in.");
 
       const phaseCompleted = getPhaseProgress(phase, result.normalizedStepStates).percentage === 100;
 
       if (phaseCompleted && !result.finished) {
+        setMilestonePanel({
+          variant: "phase",
+          title: "Phase Completed",
+          body: "You've unlocked the next stage. The next module is ready to continue your journey.",
+          actionLabel: stepIndex < roadmap.phases.length - 1 ? "Continue to Next Phase" : "View Opportunities",
+          onAction: onStepComplete,
+        });
         window.setTimeout(() => {
           onStepComplete();
-        }, 900);
+        }, 1400);
       }
     }, 1400);
   }
@@ -171,7 +186,7 @@ export default function RoadmapStepPage({
     const nextProjectLink = (draftLinks[taskId] || "").trim();
 
     if (!nextProjectLink) {
-      showToast("Paste a project link before submitting.");
+      showToast("Project link required", "Paste a project link before submitting.");
       return;
     }
 
@@ -274,7 +289,7 @@ export default function RoadmapStepPage({
                     href={resource.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="block rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan/30 hover:bg-white/[0.06]"
+                    className="motion-panel motion-link block rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan/30 hover:bg-white/[0.06]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -348,7 +363,7 @@ export default function RoadmapStepPage({
                                   }))
                                 }
                                 placeholder="Paste GitHub, deployed app, portfolio, or drive link"
-                                className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm text-white outline-none transition focus:border-cyan/60 focus:shadow-[0_0_0_1px_rgba(69,208,255,0.2),0_0_30px_rgba(69,208,255,0.15)]"
+                                className="motion-input h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm text-white outline-none transition focus:border-cyan/60 focus:shadow-[0_0_0_1px_rgba(69,208,255,0.2),0_0_30px_rgba(69,208,255,0.15)]"
                               />
                               <GlowButton
                                 variant="ghost"
@@ -363,7 +378,7 @@ export default function RoadmapStepPage({
                                 href={savedProjectLink}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="mt-3 inline-flex text-sm text-cyan transition hover:text-cyan/80"
+                                className="motion-link mt-3 inline-flex text-sm text-cyan transition hover:text-cyan/80"
                               >
                                 Open saved project link
                               </a>
@@ -403,7 +418,7 @@ export default function RoadmapStepPage({
                           onChange={(event) => handleProofUpload(task, event)}
                         />
                         {stepState.verificationStatus === STEP_VERIFICATION.VERIFYING ? (
-                          <div className="rounded-3xl border border-cyan/20 bg-cyan/10 px-4 py-4 text-center text-sm text-cyan">
+                          <div className="loading-shimmer rounded-3xl border border-cyan/20 bg-cyan/10 px-4 py-4 text-center text-sm text-cyan">
                             <span className="inline-flex items-center gap-2">
                               <span className="h-2 w-2 animate-pulse rounded-full bg-cyan" />
                               Verifying your submission...
@@ -433,7 +448,7 @@ export default function RoadmapStepPage({
           <div className="space-y-6">
             <GlassPanel className="p-6">
               <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Progress Snapshot</p>
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="progress-motion mt-5 h-2 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-[linear-gradient(90deg,#45d0ff,#7c5cff)]"
                   style={{ width: `${phaseProgress.percentage}%` }}
@@ -476,13 +491,26 @@ export default function RoadmapStepPage({
         </div>
       </section>
 
-      {toastMessage ? (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-          <div className="rounded-full border border-cyan/20 bg-[#07101f]/95 px-6 py-3 text-sm text-cyan shadow-[0_0_30px_rgba(69,208,255,0.16)] backdrop-blur-xl">
-            {toastMessage}
-          </div>
-        </div>
-      ) : null}
+      <FeedbackPanel
+        open={Boolean(toastState)}
+        variant="success"
+        position="bottom"
+        title={toastState?.title}
+        body={toastState?.body}
+      />
+      <FeedbackPanel
+        open={Boolean(milestonePanel)}
+        variant={milestonePanel?.variant}
+        position="center"
+        title={milestonePanel?.title}
+        body={milestonePanel?.body}
+        actionLabel={milestonePanel?.actionLabel}
+        onAction={() => {
+          const nextAction = milestonePanel?.onAction;
+          setMilestonePanel(null);
+          nextAction?.();
+        }}
+      />
     </div>
   );
 }

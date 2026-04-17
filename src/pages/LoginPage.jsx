@@ -1,5 +1,6 @@
 import { useState } from "react";
 import FloatingInput from "../components/FloatingInput";
+import FeedbackPanel from "../components/FeedbackPanel";
 import GlassPanel from "../components/GlassPanel";
 import GlowButton from "../components/GlowButton";
 import PremiumSelect from "../components/PremiumSelect";
@@ -42,6 +43,7 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
   const [newUserErrors, setNewUserErrors] = useState({});
   const [status, setStatus] = useState("idle");
   const [statusMessage, setStatusMessage] = useState(copy.loginPrompt);
+  const [showSuccessPanel, setShowSuccessPanel] = useState(false);
 
   function switchMode(nextMode) {
     setMode(nextMode);
@@ -105,8 +107,10 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
 
     setStatus("success");
     setStatusMessage(copy.loginSuccess);
+    setShowSuccessPanel(true);
 
     window.setTimeout(() => {
+      setShowSuccessPanel(false);
       onSuccess(result.user, result.session?.authMode || "existing");
     }, 900);
   }
@@ -159,8 +163,10 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
 
     setStatus("success");
     setStatusMessage(copy.signupSuccess);
+    setShowSuccessPanel(true);
 
     window.setTimeout(() => {
+      setShowSuccessPanel(false);
       onSuccess(result.user, result.session?.authMode || "new");
     }, 900);
   }
@@ -238,7 +244,7 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
                     key={option.id}
                     type="button"
                     onClick={() => switchMode(option.id)}
-                    className={`rounded-full px-4 py-3 text-sm font-semibold transition duration-300 ${
+                    className={`motion-button rounded-full px-4 py-3 text-sm font-semibold transition duration-300 ${
                       active
                         ? "bg-[linear-gradient(135deg,rgba(124,92,255,0.95),rgba(69,208,255,0.95))] text-slate-950 shadow-[0_0_30px_rgba(69,208,255,0.18)]"
                         : "text-mist hover:bg-white/[0.05] hover:text-white"
@@ -403,7 +409,7 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
                                       preferredLanguage: "",
                                     }));
                                   }}
-                                  className={`rounded-3xl border px-4 py-4 text-left text-sm transition duration-300 ${
+                                  className={`motion-panel rounded-3xl border px-4 py-4 text-left text-sm transition duration-300 ${
                                     active
                                       ? "border-cyan/45 bg-cyan/12 text-white shadow-[0_0_30px_rgba(69,208,255,0.12)]"
                                       : "border-white/10 bg-white/[0.04] text-mist hover:border-white/20 hover:bg-white/[0.06]"
@@ -459,6 +465,18 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
           </div>
         </GlassPanel>
       </div>
+
+      <FeedbackPanel
+        open={showSuccessPanel}
+        variant="phase"
+        position="center"
+        title={mode === "existing" ? "Login successful. Welcome back." : "Profile initialized successfully."}
+        body={mode === "existing" ? "You're in. Let's continue your journey." : "Your simulation environment is ready. Preparing your personalized control room."}
+        actionLabel="Continue"
+        onAction={() => {
+          setShowSuccessPanel(false);
+        }}
+      />
     </div>
   );
 }

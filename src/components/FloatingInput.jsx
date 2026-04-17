@@ -17,7 +17,7 @@ export default function FloatingInput({
         onChange={onChange}
         autoComplete={autoComplete}
         placeholder=" "
-        className={`peer h-16 w-full rounded-3xl border bg-white/[0.05] px-5 pt-5 text-sm text-white outline-none transition duration-300 placeholder:text-transparent focus:bg-white/[0.08] focus:shadow-[0_0_0_1px_rgba(69,208,255,0.2),0_0_30px_rgba(69,208,255,0.15)] ${
+        className={`motion-input peer h-16 w-full rounded-3xl border bg-white/[0.05] px-5 pt-5 text-sm text-white outline-none transition duration-300 placeholder:text-transparent focus:bg-white/[0.08] focus:shadow-[0_0_0_1px_rgba(69,208,255,0.2),0_0_30px_rgba(69,208,255,0.15)] ${
           error
             ? "border-rose-400/60 focus:border-rose-300"
             : "border-white/10 focus:border-cyan/60"

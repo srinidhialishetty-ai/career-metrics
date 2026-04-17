@@ -91,7 +91,7 @@ export default function RoadmapOverviewPage({
               <p className="mt-4 text-sm leading-7 text-mist">
                 {roadmap.aiInsight?.insight}
               </p>
-              <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="progress-motion mt-6 h-2 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-[linear-gradient(90deg,#45d0ff,#7c5cff)]"
                   style={{ width: `${progress.percentage}%` }}
@@ -135,7 +135,7 @@ export default function RoadmapOverviewPage({
                   </span>
                 </div>
                 <p className="mt-4 text-sm leading-7 text-mist">{phase.description}</p>
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="progress-motion mt-5 h-2 overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full bg-[linear-gradient(90deg,#45d0ff,#7c5cff)]"
                     style={{ width: `${phaseProgress.percentage}%` }}

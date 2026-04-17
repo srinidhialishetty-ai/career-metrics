@@ -161,7 +161,7 @@ export default function DashboardPage({
                   Current step: {nextTask ? `${nextTask.monthLabel} - ${nextTask.name}` : "Roadmap completed"}
                 </p>
                 <p className="mt-2 text-sm text-mist">Timeline: {roadmap.phases.length} guided phases</p>
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="progress-motion mt-5 h-2 overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full bg-[linear-gradient(90deg,#45d0ff,#7c5cff)]"
                     style={{ width: `${progress}%` }}
