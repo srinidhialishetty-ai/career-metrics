@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GlassPanel from "../components/GlassPanel";
 import GlowButton from "../components/GlowButton";
 import SectionLabel from "../components/SectionLabel";
@@ -10,6 +10,28 @@ import {
   riskOptions,
   skillOptions,
 } from "../lib/careerData";
+import { getRoadmapForDomain, getProofTypes } from "../lib/roadmapData";
+import {
+  Award,
+  Image,
+  ExternalLink,
+  Github,
+  FileText,
+  Table,
+  Globe,
+  Video,
+  Upload,
+  CheckCircle,
+  Circle,
+  Sparkles,
+  X,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
