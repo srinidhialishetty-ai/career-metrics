@@ -44,11 +44,11 @@ const translations = {
       boardLabel: "Simulation Board",
       boardTitle: "Adaptive Career Twin",
       liveSync: "Live Sync",
-      growthLabel: "Projected 3-year growth",
+      growthLabel: "5-Year Growth Potential",
       confidenceText: "Confidence",
       high: "High",
       updatedFeed: "Updated from live scenario feed",
-      compensation: "Compensation",
+      compensation: "Expected Compensation",
       demandIndex: "Demand Index",
       skillAdvantage: "Skill Advantage",
       trajectory: "Trajectory",
@@ -78,11 +78,11 @@ const translations = {
       predictivePreview: "Predictive Insight Preview",
       aiOutput: "AI System Output",
       predictiveCopy:
-        "You are trending towards high-growth tech careers with moderate volatility and a strong upside if you compound strategy, AI fluency, and leadership depth in the next 18 months.",
+        "You are trending toward high-growth digital careers with strong upside if you keep compounding strategy, AI fluency, and leadership depth over the next 18 months.",
       systemAccess: "System Access",
       finalTitle: "Stop Guessing. Start Mapping.",
       finalBody:
-        "Step into a future-facing control room built to decode your next move with clarity, velocity, and conviction.",
+        "Step into a future-facing control room built to decode your direction with clarity, velocity, and conviction.",
       enterCareerMetrics: "Enter Career Metrics",
     },
     auth: {
@@ -120,7 +120,7 @@ const translations = {
       mobileHelper: "Enter a valid 10-digit number",
       ageHelper: "Must be between 12 and 100",
       returnToLanding: "Return to Landing",
-      noAccount: "No account found. Please sign up as a new user.",
+      noAccount: "No account found. Please sign up first.",
       wrongPassword: "Incorrect password. Please try again.",
       existingEmpty: "Enter both fields to continue.",
       duplicateEmail: "An account with this email already exists. Please log in.",
@@ -158,18 +158,6 @@ const translations = {
       liveOutput: "Live Output",
       liveOutputBody:
         "You are trending toward high-growth leadership roles with strong leverage if you keep building AI-native decision skills and strategic communication.",
-      careerArc: "Career Arc",
-      careerArcValue: "Upward Momentum",
-      careerArcBody:
-        "Your current profile maps best to product, AI systems, and strategy-led leadership roles.",
-      volatility: "Volatility",
-      volatilityValue: "Moderate",
-      volatilityBody:
-        "Strong upside remains intact if you keep compounding execution depth with AI fluency.",
-      nextMove: "Next Move",
-      nextMoveValue: "Skill Stack",
-      nextMoveBody:
-        "Lean into communication, systems design, and decision frameworks to unlock higher-leverage paths.",
       prototypeAuth: "Prototype Auth",
       demoMode: "Demo mode enabled",
       prototypeBody:

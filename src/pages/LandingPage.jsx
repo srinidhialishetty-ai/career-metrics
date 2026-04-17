@@ -1,6 +1,7 @@
 import GlassPanel from "../components/GlassPanel";
 import GlowButton from "../components/GlowButton";
 import SectionLabel from "../components/SectionLabel";
+import { formatSalaryRange } from "../lib/domainData";
 
 function AmbientCard({ className, children }) {
   return (
@@ -110,7 +111,7 @@ export default function LandingPage({ onEnterSystem, copy }) {
                   >
                     <p className="text-sm text-mist">{item}</p>
                     <p className="mt-3 text-2xl font-semibold text-white">
-                      {["$182K", "92 / 100", "Top 11%"][index]}
+                      {[formatSalaryRange(1800000, 3200000), "92 / 100", "Top 11%"][index]}
                     </p>
                     <p className="mt-2 text-xs uppercase tracking-[0.28em] text-cyan/60">
                       {copy.updatedFeed}

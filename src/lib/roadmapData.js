@@ -1,5 +1,5 @@
 export const roadmapData = {
-  Tech: {
+  tech: {
     phases: [
       {
         id: "foundation",
@@ -51,10 +51,10 @@ export const roadmapData = {
     ],
     aiInsight: {
       title: "Technical Path Acceleration",
-      insight: "The tech domain rewards consistent, project-based learning. Your fastest growth comes from shipping real projects rather than just consuming tutorials. Focus on building in public and contributing to open source to establish credibility. The market values demonstrable skills over credentials."
+      insight: "The tech domain rewards consistent, project-based learning. Your fastest growth comes from shipping real projects rather than just consuming tutorials. Focus on building in public and contributing to open source to establish credibility. The market values demonstrable skills over credentials. Entry salaries range from ₹3.5L to ₹6L, with senior roles reaching ₹15L-₹35L in major Indian tech hubs."
     }
   },
-  Business: {
+  business: {
     phases: [
       {
         id: "foundation",
@@ -98,7 +98,7 @@ export const roadmapData = {
         duration: "12+ months",
         description: "Become a recognized business leader",
         tasks: [
-          { id: "b13", name: "Drive revenue or cost impact project", description: "Measurable business outcome >$100K", proofType: "document" },
+          { id: "b13", name: "Drive revenue or cost impact project", description: "Measurable business outcome above ₹10,00,000", proofType: "document" },
           { id: "b14", name: "Build and manage a team", description: "Hire and develop 2+ direct reports", proofType: "document" },
           { id: "b15", name: "Publish thought leadership", description: "Articles on business strategy", proofType: "link" },
         ]
@@ -106,10 +106,10 @@ export const roadmapData = {
     ],
     aiInsight: {
       title: "Business Trajectory Optimization",
-      insight: "Business paths reward those who combine analytical rigor with stakeholder empathy. Your competitive advantage comes from translating data into actionable strategy that aligns with organizational goals. Focus on building cross-functional relationships early—they become your network for advancement opportunities."
+      insight: "Business paths reward those who combine analytical rigor with stakeholder empathy. Your competitive advantage comes from translating data into actionable strategy that aligns with organizational goals. Focus on building cross-functional relationships early—they become your network for advancement opportunities. Entry roles start at ₹3.5L-₹6L, with senior management positions reaching ₹20L-₹40L annually."
     }
   },
-  Creative: {
+  arts: {
     phases: [
       {
         id: "foundation",
@@ -161,13 +161,37 @@ export const roadmapData = {
     ],
     aiInsight: {
       title: "Creative Career Amplification",
-      insight: "Creative careers thrive on visibility and storytelling. Your portfolio is more than work samples—it's evidence of your problem-solving process. Prioritize projects that demonstrate impact metrics and user outcomes. The market rewards designers who can bridge aesthetic excellence with business objectives."
+      insight: "Creative careers thrive on visibility and storytelling. Your portfolio is more than work samples—it's evidence of your problem-solving process. Prioritize projects that demonstrate impact metrics and user outcomes. The market rewards designers who can bridge aesthetic excellence with business objectives. Starting salaries range from ₹3L to ₹5.5L, with experienced creative directors earning ₹12L-₹25L annually."
     }
   }
 };
 
-export function getRoadmapForDomain(domain) {
-  return roadmapData[domain] || roadmapData.Tech;
+// Backward compatibility - map old domain names to new IDs
+export function getRoadmapForDomain(domainId) {
+  // Map old domain names to new IDs
+  const domainMap = {
+    "Tech": "tech",
+    "Business": "business",
+    "Creative": "arts",
+    "tech": "tech",
+    "business": "business",
+    "arts": "arts",
+    "healthcare": "business",
+    "science": "tech",
+    "education": "business",
+    "sports": "business",
+    "entertainment": "arts",
+    "social": "business",
+    "engineering": "tech",
+    "law": "business",
+    "agriculture": "tech",
+    "travel": "business",
+    "marketing": "business",
+    "psychology": "business"
+  };
+  
+  const mappedId = domainMap[domainId] || "tech";
+  return roadmapData[mappedId] || roadmapData.tech;
 }
 
 export function getProofTypes() {

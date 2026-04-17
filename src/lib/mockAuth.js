@@ -1,6 +1,42 @@
 const USERS_KEY = "career-metrics.mock-users";
 const SESSION_KEY = "career-metrics.mock-session";
 
+const DEFAULT_APP_STATE = {
+  selectedDomains: [],
+  difficultyLevel: "Moderate",
+  skillInvestment: 1,
+  riskPreference: "Medium",
+  selectedRole: "Data Analyst",
+  selectedRoadmapDomain: "tech",
+  taskStatuses: {},
+  proofUploads: {},
+  navigation: {
+    view: "dashboard",
+    role: "Data Analyst",
+    stepIndex: 0,
+  },
+};
+
+// Default test user for development
+const DEFAULT_TEST_USER = {
+  id: "test_user_001",
+  identity: "test@example.com",
+  usernameOrEmail: "test@example.com",
+  password: "test123",
+  profile: {
+    fullName: "Test User",
+    emailAddress: "test@example.com",
+    mobileNumber: "9876543210",
+    age: "25",
+    casteCategory: "general",
+    preferredLanguage: "en",
+    displayName: "Test User",
+    createdAt: new Date().toISOString(),
+    simulationTier: "Explorer",
+    focusTrack: "AI Product Strategy",
+  },
+};
+
 function hasStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
@@ -35,6 +71,21 @@ function sanitizeIdentity(identity) {
   return identity.trim().toLowerCase();
 }
 
+export function getDefaultAppState() {
+  return structuredClone(DEFAULT_APP_STATE);
+}
+
+export function getUserAppState(user) {
+  return {
+    ...getDefaultAppState(),
+    ...(user?.appState || {}),
+    navigation: {
+      ...DEFAULT_APP_STATE.navigation,
+      ...(user?.appState?.navigation || {}),
+    },
+  };
+}
+
 export function isProfileComplete(user) {
   const profile = user?.profile;
 
@@ -48,7 +99,13 @@ export function isProfileComplete(user) {
 }
 
 export function getStoredUsers() {
-  return readJson(USERS_KEY, []);
+  const users = readJson(USERS_KEY, []);
+  // Always include default test user for development
+  const hasTestUser = users.some(u => u.identity === DEFAULT_TEST_USER.identity);
+  if (!hasTestUser) {
+    return [...users, DEFAULT_TEST_USER];
+  }
+  return users;
 }
 
 export function getStoredSession() {
@@ -80,6 +137,7 @@ export function updateStoredSessionAuthMode(authMode) {
 }
 
 function createSession(user, authMode = "existing") {
+  const appState = getUserAppState(user);
   const session = {
     userId: user.id,
     identity: user.identity,
@@ -87,6 +145,7 @@ function createSession(user, authMode = "existing") {
     loggedIn: true,
     preferredLanguage: user?.profile?.preferredLanguage || "en",
     authMode,
+    navigation: appState.navigation,
   };
 
   writeJson(SESSION_KEY, session);
@@ -163,6 +222,7 @@ export function createMockProfile(profileData) {
       simulationTier: "Explorer",
       focusTrack: "AI Product Strategy",
     },
+    appState: getDefaultAppState(),
   };
 
   writeJson(USERS_KEY, [...users, user]);
@@ -196,6 +256,49 @@ export function updateStoredUserProfile(userId, profileUpdates) {
   });
 
   writeJson(USERS_KEY, nextUsers);
+
+  return updatedUser;
+}
+
+export function updateStoredUserAppState(userId, appStateUpdates) {
+  const users = getStoredUsers();
+  let updatedUser = null;
+
+  const nextUsers = users.map((entry) => {
+    if (entry.id !== userId) {
+      return entry;
+    }
+
+    const currentAppState = getUserAppState(entry);
+    const nextNavigation =
+      appStateUpdates.navigation === undefined
+        ? currentAppState.navigation
+        : {
+            ...currentAppState.navigation,
+            ...appStateUpdates.navigation,
+          };
+
+    updatedUser = {
+      ...entry,
+      appState: {
+        ...currentAppState,
+        ...appStateUpdates,
+        navigation: nextNavigation,
+      },
+    };
+
+    return updatedUser;
+  });
+
+  writeJson(USERS_KEY, nextUsers);
+
+  const session = getStoredSession();
+  if (session?.userId === userId && updatedUser) {
+    writeJson(SESSION_KEY, {
+      ...session,
+      navigation: updatedUser.appState.navigation,
+    });
+  }
 
   return updatedUser;
 }
