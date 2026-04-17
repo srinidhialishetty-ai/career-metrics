@@ -109,6 +109,36 @@ function getRecommendation(primaryCareer, rankedCareers, riskPreference) {
   return `Choose ${primaryCareer.name} if you want the best balance between growth, practical transition speed, and long-term optionality.`;
 }
 
+function getDomainFromCareer(careerName) {
+  const career = careerLibrary[careerName];
+  return career?.domainType || "Tech";
+}
+
+function calculateProgress(roadmap, completedTasks) {
+  const totalTasks = roadmap.phases.reduce((sum, phase) => sum + phase.tasks.length, 0);
+  const completedCount = Object.values(completedTasks).filter(Boolean).length;
+  return totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+}
+
+function calculatePhaseProgress(phase, completedTasks) {
+  const completedCount = phase.tasks.filter((t) => completedTasks[t.id]).length;
+  return phase.tasks.length > 0 ? Math.round((completedCount / phase.tasks.length) * 100) : 0;
+}
+
+function getProofIcon(type) {
+  const icons = {
+    certificate: Award,
+    screenshot: Image,
+    project_link: ExternalLink,
+    github_link: Github,
+    document: FileText,
+    spreadsheet: Table,
+    link: Globe,
+    video: Video,
+  };
+  return icons[type] || Upload;
+}
+
 export default function DashboardPage({
   user,
   onLogout,
@@ -125,6 +155,23 @@ export default function DashboardPage({
   const [showAllCareers, setShowAllCareers] = useState(false);
   const [expandedCareers, setExpandedCareers] = useState({});
   const [primaryCareerName, setPrimaryCareerName] = useState("Data Analyst");
+
+  // Roadmap and task tracking state
+  const [expandedPhases, setExpandedPhases] = useState({ foundation: true });
+  const [completedTasks, setCompletedTasks] = useState(() => {
+    const saved = localStorage.getItem("careerMetrics_completedTasks");
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [uploadingTask, setUploadingTask] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [pendingTaskId, setPendingTaskId] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Save completed tasks to localStorage
+  useEffect(() => {
+    localStorage.setItem("careerMetrics_completedTasks", JSON.stringify(completedTasks));
+  }, [completedTasks]);
 
   useEffect(() => {
     if (isFirstEntry) {
@@ -300,6 +347,66 @@ export default function DashboardPage({
       [name]: !current[name],
     }));
   }
+
+  // Roadmap event handlers
+  function togglePhase(phaseId) {
+    setExpandedPhases((current) => ({
+      ...current,
+      [phaseId]: !current[phaseId],
+    }));
+  }
+
+  function handleTaskToggle(taskId, requiresProof = false) {
+    if (requiresProof && !completedTasks[taskId]) {
+      setPendingTaskId(taskId);
+      setShowUploadModal(true);
+      return;
+    }
+
+    setCompletedTasks((current) => ({
+      ...current,
+      [taskId]: !current[taskId],
+    }));
+  }
+
+  function handleFileSelect(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Simulate upload progress
+    setUploadingTask(pendingTaskId);
+    setUploadProgress(0);
+
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          // Complete the task after upload
+          setCompletedTasks((current) => ({
+            ...current,
+            [pendingTaskId]: true,
+          }));
+          setShowUploadModal(false);
+          setUploadingTask(null);
+          setPendingTaskId(null);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 150);
+  }
+
+  function closeUploadModal() {
+    setShowUploadModal(false);
+    setPendingTaskId(null);
+    setUploadingTask(null);
+    setUploadProgress(0);
+  }
+
+  // Get roadmap based on primary career domain
+  const currentDomain = getDomainFromCareer(primaryCareerName);
+  const roadmap = getRoadmapForDomain(currentDomain);
+  const overallProgress = calculateProgress(roadmap, completedTasks);
 
   if (!primaryCareer) {
     return null;
@@ -748,8 +855,241 @@ export default function DashboardPage({
               </div>
             </div>
           </GlassPanel>
+
+          {/* Progress Tracker */}
+          <GlassPanel className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Domain Progress Tracker</p>
+                <p className="mt-2 text-xl font-semibold text-white">{currentDomain} Career Roadmap</p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-white">{overallProgress}%</p>
+                <p className="text-sm text-mist">Overall Completion</p>
+              </div>
+            </div>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-aurora to-cyan transition-all duration-500"
+                style={{ width: `${overallProgress}%` }}
+              />
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+              <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-3">
+                <Target className="mx-auto h-5 w-5 text-cyan" />
+                <p className="mt-2 text-lg font-semibold text-white">
+                  {Object.values(completedTasks).filter(Boolean).length}
+                </p>
+                <p className="text-xs text-mist">Tasks Done</p>
+              </div>
+              <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-3">
+                <TrendingUp className="mx-auto h-5 w-5 text-emerald-300" />
+                <p className="mt-2 text-lg font-semibold text-white">{roadmap.phases.length}</p>
+                <p className="text-xs text-mist">Phases</p>
+              </div>
+              <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-3">
+                <Zap className="mx-auto h-5 w-5 text-amber-300" />
+                <p className="mt-2 text-lg font-semibold text-white">
+                  {overallProgress >= 75 ? "Advanced" : overallProgress >= 40 ? "Building" : "Starting"}
+                </p>
+                <p className="text-xs text-mist">Level</p>
+              </div>
+            </div>
+          </GlassPanel>
+
+          {/* AI Insight Card */}
+          <GlassPanel className="relative overflow-hidden p-6">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-aurora/20 blur-3xl" />
+            <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-cyan/20 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-cyan" />
+                <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">AI Career Intelligence</p>
+              </div>
+              <p className="mt-3 text-xl font-semibold text-white">{roadmap.aiInsight.title}</p>
+              <p className="mt-3 text-sm leading-7 text-mist">{roadmap.aiInsight.insight}</p>
+              <div className="mt-4 flex items-center gap-2 text-xs text-cyan/60">
+                <span className="rounded-full border border-cyan/20 bg-cyan/5 px-2 py-1">{currentDomain}</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1">Personalized</span>
+              </div>
+            </div>
+          </GlassPanel>
+
+          {/* Domain Roadmap */}
+          <GlassPanel className="p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Domain Roadmap</p>
+            <p className="mt-3 text-xl font-semibold text-white">{currentDomain} Career Path</p>
+            <p className="mt-2 text-sm text-mist">
+              Follow this structured roadmap to build expertise in {currentDomain}.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              {roadmap.phases.map((phase) => {
+                const isExpanded = expandedPhases[phase.id];
+                const phaseProgress = calculatePhaseProgress(phase, completedTasks);
+
+                return (
+                  <div
+                    key={phase.id}
+                    className={`rounded-[1.5rem] border transition-all duration-300 ${
+                      isExpanded ? "border-cyan/30 bg-cyan/[0.05]" : "border-white/10 bg-white/[0.03]"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => togglePhase(phase.id)}
+                      className="flex w-full items-center justify-between p-4 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                            phaseProgress === 100
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : phaseProgress > 0
+                                ? "bg-amber-500/20 text-amber-300"
+                                : "bg-white/10 text-mist"
+                          }`}
+                        >
+                          {phaseProgress === 100 ? (
+                            <CheckCircle className="h-5 w-5" />
+                          ) : phaseProgress > 0 ? (
+                            <span className="text-sm font-semibold">{phaseProgress}%</span>
+                          ) : (
+                            <Circle className="h-5 w-5" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-white">{phase.name}</p>
+                          <p className="text-xs text-mist">{phase.duration}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-mist">
+                          {phase.tasks.filter((t) => completedTasks[t.id]).length}/{phase.tasks.length} tasks
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="h-5 w-5 text-mist" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-mist" />
+                        )}
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-white/10 px-4 pb-4 pt-4">
+                        <p className="mb-4 text-sm text-mist">{phase.description}</p>
+                        <div className="space-y-3">
+                          {phase.tasks.map((task) => {
+                            const isCompleted = completedTasks[task.id];
+                            const ProofIcon = getProofIcon(task.proofType);
+                            const requiresProof = task.proofType !== "none";
+
+                            return (
+                              <div
+                                key={task.id}
+                                className={`flex items-start gap-3 rounded-[1.25rem] border p-3 transition-all ${
+                                  isCompleted
+                                    ? "border-emerald-500/30 bg-emerald-500/[0.05]"
+                                    : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => handleTaskToggle(task.id, requiresProof)}
+                                  className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${
+                                    isCompleted
+                                      ? "border-emerald-500 bg-emerald-500 text-slate-950"
+                                      : "border-white/30 bg-transparent hover:border-cyan/50"
+                                  }`}
+                                >
+                                  {isCompleted && <CheckCircle className="h-4 w-4" />}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`font-medium ${isCompleted ? "text-white/60 line-through" : "text-white"}`}>
+                                    {task.name}
+                                  </p>
+                                  <p className="mt-1 text-xs text-mist">{task.description}</p>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-xs text-mist">
+                                      <ProofIcon className="h-3 w-3" />
+                                      {getProofTypes()[task.proofType]?.label || "Proof"}
+                                    </span>
+                                    {!isCompleted && requiresProof && (
+                                      <span className="text-xs text-amber-300/80">Upload required</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </GlassPanel>
         </div>
       </section>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-[2rem] border border-cyan/20 bg-[#0a1020]/95 p-6 shadow-[0_0_60px_rgba(69,208,255,0.15)]">
+            <button
+              type="button"
+              onClick={closeUploadModal}
+              className="absolute right-4 top-4 rounded-full p-2 text-mist transition hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-cyan/10">
+                <Upload className="h-7 w-7 text-cyan" />
+              </div>
+              <p className="mt-4 text-lg font-semibold text-white">Upload Proof</p>
+              <p className="mt-2 text-sm text-mist">
+                Please upload evidence of task completion to proceed.
+              </p>
+
+              {uploadingTask ? (
+                <div className="mt-6">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-cyan" />
+                    <span className="text-sm text-mist">Uploading... {uploadProgress}%</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-aurora to-cyan transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-6">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xlsx,.csv,.mp4,.mov,.webm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full rounded-full bg-[linear-gradient(135deg,rgba(124,92,255,0.95),rgba(69,208,255,0.95))] px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_24px_rgba(69,208,255,0.18)] transition hover:scale-[1.01]"
+                  >
+                    Select File to Upload
+                  </button>
+                  <p className="mt-3 text-xs text-mist">Supported: PDF, Images, Documents, Spreadsheets, Video</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
