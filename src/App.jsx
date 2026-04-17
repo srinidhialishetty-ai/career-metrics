@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import MotionSystem from "./components/MotionSystem";
 import RoleSimulationPage from "./pages/RoleSimulationPage";
 import RoadmapOverviewPage from "./pages/RoadmapOverviewPage";
 import RoadmapStepPage from "./pages/RoadmapStepPage";
+import JobsPage from "./pages/JobsPage";
 import {
   clearStoredSession,
   getUserAppState,
@@ -15,7 +17,20 @@ import {
 } from "./lib/mockAuth";
 import { getRoleDetails } from "./lib/careerHelpers";
 import { getTranslations } from "./lib/i18n";
-import { getMergedRoadmap } from "./lib/roadmapHelpers";
+import { getMergedRoadmap, isRoadmapComplete } from "./lib/roadmapHelpers";
+import { buildPath, getRouteStateFromPath } from "./lib/routes";
+
+function getCanonicalView(routeView, hasSession) {
+  if (!hasSession) {
+    return routeView === "login" ? "login" : "landing";
+  }
+
+  if (routeView === "landing" || routeView === "login") {
+    return "dashboard";
+  }
+
+  return routeView;
+}
 
 export default function App() {
   const [activeView, setActiveView] = useState("landing");
@@ -24,34 +39,122 @@ export default function App() {
   const [selectedRole, setSelectedRole] = useState("Data Analyst");
   const [roadmapStepIndex, setRoadmapStepIndex] = useState(0);
 
+  function syncWindowPath(view, stepIndex, replace = false) {
+    const path = buildPath(view, { stepIndex });
+
+    if (typeof window === "undefined" || window.location.pathname === path) {
+      return;
+    }
+
+    window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+  }
+
+  function applyRouteState({ view, role, stepIndex }, replace = false) {
+    setActiveView(view);
+    setSelectedRole(role);
+    setRoadmapStepIndex(stepIndex);
+    syncWindowPath(view, stepIndex, replace);
+  }
+
   useEffect(() => {
     const session = getStoredSession();
+    const routeState = getRouteStateFromPath(window.location.pathname);
 
     if (!session) {
+      applyRouteState(
+        {
+          view: getCanonicalView(routeState.view, false),
+          role: "Data Analyst",
+          stepIndex: routeState.stepIndex || 0,
+        },
+        true,
+      );
       return;
     }
 
     const user = getStoredUsers().find((entry) => entry.id === session.userId);
 
-    if (user) {
-      const appState = getUserAppState(user);
-      const navigation = session?.navigation || appState.navigation;
-      setCurrentUser(user);
-      setAuthMode(session?.authMode || "existing");
-      setSelectedRole(navigation?.role || appState.selectedRole || "Data Analyst");
-      setRoadmapStepIndex(navigation?.stepIndex || 0);
-      setActiveView(navigation?.view || "dashboard");
+    if (!user) {
+      applyRouteState({ view: "landing", role: "Data Analyst", stepIndex: 0 }, true);
+      return;
     }
+
+    const appState = getUserAppState(user);
+    const nextView = getCanonicalView(routeState.view, true);
+    const nextRole = appState.navigation.role || appState.selectedRole || "Data Analyst";
+    const nextStepIndex =
+      nextView === "roadmap-step"
+        ? routeState.stepIndex || 0
+        : appState.navigation.stepIndex || 0;
+
+    setCurrentUser(user);
+    setAuthMode(session?.authMode || "existing");
+    applyRouteState(
+      {
+        view: nextView,
+        role: nextRole,
+        stepIndex: nextStepIndex,
+      },
+      true,
+    );
   }, []);
+
+  useEffect(() => {
+    function handlePopState() {
+      const routeState = getRouteStateFromPath(window.location.pathname);
+      const nextView = getCanonicalView(routeState.view, Boolean(currentUser));
+      const appState = getUserAppState(currentUser);
+
+      setActiveView(nextView);
+      setSelectedRole(appState.navigation.role || appState.selectedRole || "Data Analyst");
+      setRoadmapStepIndex(routeState.view === "roadmap-step" ? routeState.stepIndex || 0 : appState.navigation.stepIndex || 0);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [currentUser]);
+
+  function persistAndRoute(appStateUpdates = {}, routeOptions = {}, replace = false) {
+    const nextRole = routeOptions.role ?? selectedRole;
+    const nextStepIndex = routeOptions.stepIndex ?? roadmapStepIndex;
+    const nextView = routeOptions.view ?? activeView;
+
+    if (!currentUser) {
+      applyRouteState({ view: nextView, role: nextRole, stepIndex: nextStepIndex }, replace);
+      return null;
+    }
+
+    const updatedUser = updateStoredUserAppState(currentUser.id, {
+      ...appStateUpdates,
+      selectedRole: appStateUpdates.selectedRole ?? nextRole,
+      navigation: {
+        ...(appStateUpdates.navigation || {}),
+        view: nextView,
+        role: nextRole,
+        stepIndex: nextStepIndex,
+      },
+    });
+
+    if (updatedUser) {
+      setCurrentUser(updatedUser);
+    }
+
+    applyRouteState({ view: nextView, role: nextRole, stepIndex: nextStepIndex }, replace);
+    return updatedUser;
+  }
 
   function handleAuthSuccess(user, sessionAuthMode = "existing") {
     const appState = getUserAppState(user);
-    const navigation = appState.navigation;
     setCurrentUser(user);
     setAuthMode(sessionAuthMode);
-    setSelectedRole(navigation?.role || appState.selectedRole || "Data Analyst");
-    setRoadmapStepIndex(navigation?.stepIndex || 0);
-    setActiveView(navigation?.view || "dashboard");
+    applyRouteState(
+      {
+        view: "dashboard",
+        role: appState.selectedRole || appState.navigation.role || "Data Analyst",
+        stepIndex: appState.navigation.stepIndex || 0,
+      },
+      false,
+    );
   }
 
   function handleConsumeNewUserWelcome() {
@@ -63,72 +166,70 @@ export default function App() {
     clearStoredSession();
     setCurrentUser(null);
     setAuthMode("existing");
-    setSelectedRole("Data Analyst");
-    setRoadmapStepIndex(0);
-    setActiveView("landing");
+    applyRouteState({ view: "landing", role: "Data Analyst", stepIndex: 0 }, false);
   }
 
   function handleUpdateAppState(appStateUpdates) {
-    if (!currentUser) {
-      return;
-    }
+    persistAndRoute(appStateUpdates, {
+      view: appStateUpdates.navigation?.view ?? activeView,
+      role: appStateUpdates.navigation?.role ?? selectedRole,
+      stepIndex: appStateUpdates.navigation?.stepIndex ?? roadmapStepIndex,
+    });
+  }
 
-    const updatedUser = updateStoredUserAppState(currentUser.id, appStateUpdates);
-
-    if (updatedUser) {
-      setCurrentUser(updatedUser);
-      const nextAppState = getUserAppState(updatedUser);
-      setSelectedRole(nextAppState.navigation.role || nextAppState.selectedRole || "Data Analyst");
-      setRoadmapStepIndex(nextAppState.navigation.stepIndex || 0);
-      setActiveView(nextAppState.navigation.view || "dashboard");
-    }
+  function navigatePublic(view) {
+    applyRouteState({ view, role: "Data Analyst", stepIndex: 0 }, false);
   }
 
   function handleOpenRoleSimulation(roleName) {
-    setSelectedRole(roleName);
-    setActiveView("role-simulation");
-    handleUpdateAppState({
-      selectedRole: roleName,
-      navigation: {
+    persistAndRoute(
+      {
+        selectedRole: roleName,
+      },
+      {
         view: "role-simulation",
         role: roleName,
+        stepIndex: 0,
       },
-    });
+    );
   }
 
   function handleOpenRoadmapOverview(roleName = selectedRole) {
-    setSelectedRole(roleName);
-    setActiveView("roadmap-overview");
-    handleUpdateAppState({
-      selectedRole: roleName,
-      navigation: {
+    persistAndRoute(
+      {
+        selectedRole: roleName,
+      },
+      {
         view: "roadmap-overview",
         role: roleName,
+        stepIndex: roadmapStepIndex,
       },
-    });
+    );
   }
 
   function handleOpenRoadmapStep(stepIndex) {
-    setRoadmapStepIndex(stepIndex);
-    setActiveView("roadmap-step");
-    handleUpdateAppState({
-      navigation: {
+    persistAndRoute(
+      {},
+      {
         view: "roadmap-step",
         role: selectedRole,
         stepIndex,
       },
-    });
+    );
   }
 
-  function handleBackToDashboard() {
-    setActiveView("dashboard");
-    handleUpdateAppState({
-      navigation: {
-        view: "dashboard",
+  function handleOpenJobs() {
+    persistAndRoute(
+      {
+        jobsUnlocked: true,
+        roadmapCompleted: true,
+      },
+      {
+        view: "jobs",
         role: selectedRole,
         stepIndex: roadmapStepIndex,
       },
-    });
+    );
   }
 
   const translations = getTranslations();
@@ -136,17 +237,30 @@ export default function App() {
   const selectedRoleDetails = currentUser
     ? getRoleDetails(selectedRole, currentUser, appState)
     : null;
-  const roadmapDomain = appState.selectedRoadmapDomain || appState.selectedDomains?.[0] || selectedRoleDetails?.domainType || "tech";
-  const roadmap = getMergedRoadmap(roadmapDomain, appState.difficultyLevel);
+  const roadmapDomain =
+    appState.selectedRoadmapDomain || appState.selectedDomains?.[0] || selectedRoleDetails?.domainType || "tech";
+  const roadmap = useMemo(
+    () => getMergedRoadmap(roadmapDomain, appState.difficultyLevel),
+    [appState.difficultyLevel, roadmapDomain],
+  );
+  const roadmapFinished = isRoadmapComplete(roadmap, appState.stepStates);
+  const jobsUnlocked = appState.jobsUnlocked || roadmapFinished;
+
+  useEffect(() => {
+    if (activeView === "jobs" && !jobsUnlocked && currentUser) {
+      handleOpenRoadmapOverview(selectedRole);
+    }
+  }, [activeView, currentUser, jobsUnlocked, selectedRole]);
 
   return (
     <div className="min-h-screen bg-ink text-white">
+      <MotionSystem />
       <div className="app-shell relative overflow-hidden">
         <div className="absolute inset-0 bg-hero-radial" />
         <div className="grid-overlay absolute inset-0 opacity-40" />
         <div className="noise-overlay absolute inset-0 opacity-20" />
 
-        <main className="relative z-10">
+        <main className="page-stage relative z-10">
           {activeView === "dashboard" && currentUser ? (
             <DashboardPage
               user={currentUser}
@@ -161,7 +275,7 @@ export default function App() {
           ) : activeView === "role-simulation" && currentUser && selectedRoleDetails ? (
             <RoleSimulationPage
               role={selectedRoleDetails}
-              onBack={handleBackToDashboard}
+              onBack={() => persistAndRoute({}, { view: "dashboard", role: selectedRole, stepIndex: roadmapStepIndex })}
               onOpenRoadmap={() => handleOpenRoadmapOverview(selectedRoleDetails.name)}
             />
           ) : activeView === "roadmap-overview" && currentUser && selectedRoleDetails ? (
@@ -169,10 +283,12 @@ export default function App() {
               role={selectedRoleDetails}
               roadmapDomain={roadmapDomain}
               difficultyLevel={appState.difficultyLevel}
-              taskStatuses={appState.taskStatuses}
+              stepStates={appState.stepStates}
+              careerReadinessScore={appState.careerReadinessScore}
               onBack={() => handleOpenRoleSimulation(selectedRoleDetails.name)}
               onOpenStep={handleOpenRoadmapStep}
-              onSwitchPath={handleBackToDashboard}
+              onSwitchPath={() => persistAndRoute({}, { view: "dashboard", role: selectedRole, stepIndex: roadmapStepIndex })}
+              onOpenJobs={jobsUnlocked ? handleOpenJobs : null}
             />
           ) : activeView === "roadmap-step" && currentUser && selectedRoleDetails ? (
             <RoadmapStepPage
@@ -180,27 +296,40 @@ export default function App() {
               roadmapDomain={roadmapDomain}
               difficultyLevel={appState.difficultyLevel}
               stepIndex={roadmapStepIndex}
-              taskStatuses={appState.taskStatuses}
-              proofUploads={appState.proofUploads}
-              onBack={handleBackToDashboard}
+              stepStates={appState.stepStates}
+              careerReadinessScore={appState.careerReadinessScore}
+              onBack={() => persistAndRoute({}, { view: "dashboard", role: selectedRole, stepIndex: roadmapStepIndex })}
               onBackToOverview={() => handleOpenRoadmapOverview(selectedRoleDetails.name)}
               onUpdateProgress={handleUpdateAppState}
+              onStepComplete={handleOpenJobs}
               onNextStep={() => {
                 if (roadmapStepIndex < roadmap.phases.length - 1) {
                   handleOpenRoadmapStep(roadmapStepIndex + 1);
+                } else if (jobsUnlocked) {
+                  handleOpenJobs();
                 } else {
                   handleOpenRoadmapOverview(selectedRoleDetails.name);
                 }
               }}
+              onRoadmapComplete={handleOpenJobs}
+            />
+          ) : activeView === "jobs" && currentUser && selectedRoleDetails && jobsUnlocked ? (
+            <JobsPage
+              role={selectedRoleDetails}
+              roadmapDomain={roadmapDomain}
+              progressPercentage={appState.progressPercentage || 100}
+              readinessScore={appState.careerReadinessScore || 100}
+              onBackToDashboard={() => persistAndRoute({}, { view: "dashboard", role: selectedRole, stepIndex: roadmapStepIndex })}
+              onBackToRoadmap={() => handleOpenRoadmapOverview(selectedRoleDetails.name)}
             />
           ) : activeView === "landing" ? (
             <LandingPage
-              onEnterSystem={() => setActiveView("login")}
+              onEnterSystem={() => navigatePublic("login")}
               copy={translations.landing}
             />
           ) : (
             <LoginPage
-              onBack={() => setActiveView("landing")}
+              onBack={() => navigatePublic("landing")}
               onSuccess={handleAuthSuccess}
               copy={translations.auth}
             />

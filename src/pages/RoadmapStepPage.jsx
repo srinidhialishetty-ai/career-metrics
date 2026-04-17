@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import GlassPanel from "../components/GlassPanel";
 import GlowButton from "../components/GlowButton";
 import SectionLabel from "../components/SectionLabel";
@@ -7,12 +7,17 @@ import {
   getMergedRoadmap,
   getPhaseProgress,
   getRoadmapProgress,
+  getStepState,
   getTaskStatus,
+  isRoadmapComplete,
+  normalizeStepState,
+  STEP_COMPLETION,
+  STEP_VERIFICATION,
 } from "../lib/roadmapHelpers";
 
 function getStatusLabel(status) {
   if (status === "in_progress") return "In Progress";
-  if (status === "verifying") return "Under Review";
+  if (status === "verifying") return "Verifying";
   if (status === "completed") return "Completed";
   return "Not Started";
 }
@@ -24,61 +29,173 @@ function getStatusClass(status) {
   return "border-white/10 bg-white/[0.05] text-mist";
 }
 
+function isProjectTask(task) {
+  return ["project_link", "github_link", "link"].includes(task.proofType) ||
+    /project|portfolio|application|blog/i.test(`${task.name} ${task.description}`);
+}
+
+function getReadinessScore(percentage, completedCount, totalCount) {
+  const completionWeight = Math.round(percentage * 0.7);
+  const consistencyWeight = totalCount > 0 ? Math.round((completedCount / totalCount) * 20) : 0;
+  return Math.min(100, completionWeight + consistencyWeight + 10);
+}
+
 export default function RoadmapStepPage({
   role,
   roadmapDomain,
   difficultyLevel,
   stepIndex,
-  taskStatuses,
-  proofUploads,
+  stepStates,
+  careerReadinessScore,
   onBack,
   onBackToOverview,
   onUpdateProgress,
+  onStepComplete,
   onNextStep,
+  onRoadmapComplete,
 }) {
   const roadmap = getMergedRoadmap(roadmapDomain, difficultyLevel);
   const phase = roadmap.phases[stepIndex] || roadmap.phases[0];
-  const phaseProgress = getPhaseProgress(phase, taskStatuses);
-  const roadmapProgress = getRoadmapProgress(roadmap, taskStatuses);
+  const phaseProgress = getPhaseProgress(phase, stepStates);
+  const roadmapProgress = getRoadmapProgress(roadmap, stepStates);
   const [toastMessage, setToastMessage] = useState("");
+  const [draftLinks, setDraftLinks] = useState({});
   const fileInputRefs = useRef({});
-
-  const allTasksComplete = phase.tasks.every((task) => getTaskStatus(taskStatuses, task.id) === "completed");
-
+  const allTasksComplete = phase.tasks.every((task) => getTaskStatus(stepStates, task.id) === "completed");
   const taskProofTypes = useMemo(() => getProofTypes(), []);
+
+  useEffect(() => {
+    setDraftLinks(
+      phase.tasks.reduce((accumulator, task) => {
+        accumulator[task.id] = getStepState(stepStates, task.id).projectLink || "";
+        return accumulator;
+      }, {}),
+    );
+  }, [stepStates, stepIndex]);
 
   function showToast(message) {
     setToastMessage(message);
     window.setTimeout(() => {
       setToastMessage("");
-    }, 2600);
+    }, 2800);
   }
 
-  function updateTask(taskId, nextStatus, proofUpdate = null) {
-    const nextTaskStatuses = {
-      ...taskStatuses,
-      [taskId]: nextStatus,
-    };
-    const nextProofUploads = proofUpdate
-      ? {
-          ...proofUploads,
-          [taskId]: proofUpdate,
-        }
-      : proofUploads;
+  function persist(nextStepStates) {
+    const normalizedStepStates = Object.entries(nextStepStates).reduce((accumulator, [taskId, rawStepState]) => {
+      accumulator[taskId] = normalizeStepState(rawStepState);
+      return accumulator;
+    }, {});
+    const completedCount = Object.values(normalizedStepStates).filter(
+      (stepState) => stepState.completionStatus === STEP_COMPLETION.COMPLETED,
+    ).length;
+    const totalCount = roadmap.phases.reduce((sum, phaseItem) => sum + phaseItem.tasks.length, 0);
+    const progressPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const readinessScore = getReadinessScore(progressPercentage, completedCount, totalCount);
+    const finished = isRoadmapComplete(roadmap, normalizedStepStates);
 
     onUpdateProgress({
-      taskStatuses: nextTaskStatuses,
-      proofUploads: nextProofUploads,
+      stepStates: normalizedStepStates,
+      progressPercentage,
+      careerReadinessScore: readinessScore,
+      roadmapCompleted: finished,
+      jobsUnlocked: finished,
       navigation: {
         view: "roadmap-step",
         role: role?.name,
         stepIndex,
       },
     });
+
+    if (finished) {
+      showToast("Excellent work. Your roadmap is complete.");
+      window.setTimeout(() => {
+        onRoadmapComplete();
+      }, 900);
+    }
+
+    return {
+      normalizedStepStates,
+      finished,
+    };
+  }
+
+  function beginVerification(taskId, nextStepState, pendingMessage, successMessage) {
+    const verifyingState = {
+      ...nextStepState,
+      verificationStatus: STEP_VERIFICATION.VERIFYING,
+      completionStatus: STEP_COMPLETION.IDLE,
+    };
+
+    persist({
+      ...stepStates,
+      [taskId]: verifyingState,
+    });
+    showToast(pendingMessage);
+
+    window.setTimeout(() => {
+      const result = persist({
+        ...stepStates,
+        [taskId]: {
+          ...verifyingState,
+          verificationStatus: STEP_VERIFICATION.VERIFIED,
+        },
+      });
+      showToast(successMessage);
+
+      const phaseCompleted = getPhaseProgress(phase, result.normalizedStepStates).percentage === 100;
+
+      if (phaseCompleted && !result.finished) {
+        window.setTimeout(() => {
+          onStepComplete();
+        }, 900);
+      }
+    }, 1400);
   }
 
   function handleStartTask(taskId) {
-    updateTask(taskId, "in_progress");
+    const currentStepState = getStepState(stepStates, taskId);
+
+    persist({
+      ...stepStates,
+      [taskId]: {
+        ...currentStepState,
+        verificationStatus:
+          currentStepState.verificationStatus === STEP_VERIFICATION.VERIFIED
+            ? STEP_VERIFICATION.VERIFIED
+            : STEP_VERIFICATION.DATA_SUBMITTED,
+      },
+    });
+  }
+
+  function handleProjectLinkSubmit(taskId) {
+    const nextProjectLink = (draftLinks[taskId] || "").trim();
+
+    if (!nextProjectLink) {
+      showToast("Paste a project link before submitting.");
+      return;
+    }
+
+    const currentStepState = getStepState(stepStates, taskId);
+    const nextStepState = {
+      ...currentStepState,
+      projectLink: nextProjectLink,
+      proofFile: currentStepState.proofFile
+        ? {
+            ...currentStepState.proofFile,
+            type: currentStepState.proofFile.type || "project_link",
+          }
+        : {
+            fileName: nextProjectLink,
+            uploadedAt: new Date().toISOString(),
+            type: "project_link",
+            status: "uploaded",
+            confidence: 88 + ((taskId.length + nextProjectLink.length) % 9),
+          },
+      verificationStatus: STEP_VERIFICATION.DATA_SUBMITTED,
+      completionStatus: STEP_COMPLETION.IDLE,
+    };
+
+    beginVerification(taskId, nextStepState, "Verifying your project link...", "Step completed successfully");
   }
 
   function handleProofUpload(task, event) {
@@ -88,25 +205,21 @@ export default function RoadmapStepPage({
       return;
     }
 
-    const confidence = 82 + ((task.id.length + file.name.length) % 15);
-    const proofUpdate = {
-      fileName: file.name,
-      uploadedAt: new Date().toISOString(),
-      type: file.type || "application/octet-stream",
-      status: "verifying",
-      confidence,
+    const currentStepState = getStepState(stepStates, task.id);
+    const nextStepState = {
+      ...currentStepState,
+      proofFile: {
+        fileName: file.name,
+        uploadedAt: new Date().toISOString(),
+        type: file.type || "application/octet-stream",
+        status: "uploaded",
+        confidence: 84 + ((task.id.length + file.name.length) % 12),
+      },
+      verificationStatus: STEP_VERIFICATION.DATA_SUBMITTED,
+      completionStatus: STEP_COMPLETION.IDLE,
     };
 
-    updateTask(task.id, "verifying", proofUpdate);
-    showToast("Verification in progress...");
-
-    window.setTimeout(() => {
-      updateTask(task.id, "completed", {
-        ...proofUpdate,
-        status: "verified",
-      });
-      showToast("Module completed successfully");
-    }, 1200);
+    beginVerification(task.id, nextStepState, "Verifying your submission...", "Step completed successfully");
   }
 
   return (
@@ -135,9 +248,7 @@ export default function RoadmapStepPage({
               <h1 className="mt-6 text-4xl font-semibold tracking-[-0.05em] text-white md:text-6xl">
                 {phase.name}
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-mist">
-                {phase.description}
-              </p>
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-mist">{phase.description}</p>
               <div className="mt-8 grid gap-4 md:grid-cols-3">
                 <div className="rounded-[1.5rem] border border-cyan/20 bg-[#07101f]/85 p-5">
                   <p className="text-xs uppercase tracking-[0.24em] text-cyan/65">Role Track</p>
@@ -148,8 +259,8 @@ export default function RoadmapStepPage({
                   <p className="mt-3 text-lg font-semibold text-white">{phaseProgress.percentage}% complete</p>
                 </div>
                 <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-xs uppercase tracking-[0.24em] text-cyan/65">Roadmap Progress</p>
-                  <p className="mt-3 text-lg font-semibold text-white">{roadmapProgress.percentage}% complete</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-cyan/65">Career Readiness</p>
+                  <p className="mt-3 text-lg font-semibold text-white">{careerReadinessScore || roadmapProgress.percentage}%</p>
                 </div>
               </div>
             </div>
@@ -188,32 +299,89 @@ export default function RoadmapStepPage({
             <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Module Tasks</p>
             <div className="mt-6 space-y-4">
               {phase.tasks.map((task) => {
-                const status = getTaskStatus(taskStatuses, task.id);
-                const proof = proofUploads?.[task.id];
+                const stepState = getStepState(stepStates, task.id);
+                const status = getTaskStatus(stepStates, task.id);
+                const proof = stepState.proofFile;
                 const proofMeta = taskProofTypes[task.proofType];
+                const savedProjectLink = stepState.projectLink || "";
+                const projectTask = isProjectTask(task);
+                const hasSubmittedData = Boolean(savedProjectLink || proof);
 
                 return (
-                  <div key={task.id} className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5">
+                  <div
+                    key={task.id}
+                    className={`rounded-[1.75rem] border p-5 transition ${
+                      status === "completed"
+                        ? "border-emerald-400/20 bg-emerald-400/[0.06] shadow-[0_0_30px_rgba(52,211,153,0.08)]"
+                        : "border-white/10 bg-white/[0.03]"
+                    }`}
+                  >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <p className="text-lg font-semibold text-white">{task.name}</p>
                           <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.16em] ${getStatusClass(status)}`}>
                             {getStatusLabel(status)}
                           </span>
+                          {status === "completed" ? (
+                            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs uppercase tracking-[0.16em] text-emerald-200">
+                              Verified
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-3 text-sm leading-7 text-mist">{task.description}</p>
                         <p className="mt-3 text-xs uppercase tracking-[0.18em] text-cyan/65">
                           Proof required: {proofMeta?.label || "Submission"}
                         </p>
-                        {proof ? (
+
+                        {projectTask ? (
+                          <div className="mt-4 rounded-2xl border border-white/10 bg-[#07101f]/55 p-4">
+                            <p className="text-xs uppercase tracking-[0.18em] text-cyan/65">Project Link</p>
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                              <input
+                                type="url"
+                                value={draftLinks[task.id] ?? savedProjectLink}
+                                onChange={(event) =>
+                                  setDraftLinks((current) => ({
+                                    ...current,
+                                    [task.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="Paste GitHub, deployed app, portfolio, or drive link"
+                                className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm text-white outline-none transition focus:border-cyan/60 focus:shadow-[0_0_0_1px_rgba(69,208,255,0.2),0_0_30px_rgba(69,208,255,0.15)]"
+                              />
+                              <GlowButton
+                                variant="ghost"
+                                className="sm:min-w-[170px]"
+                                onClick={() => handleProjectLinkSubmit(task.id)}
+                              >
+                                {savedProjectLink ? "Update Link" : "Submit Link"}
+                              </GlowButton>
+                            </div>
+                            {savedProjectLink ? (
+                              <a
+                                href={savedProjectLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-3 inline-flex text-sm text-cyan transition hover:text-cyan/80"
+                              >
+                                Open saved project link
+                              </a>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {hasSubmittedData ? (
                           <div className="mt-4 rounded-2xl border border-white/10 bg-[#07101f]/70 p-4 text-sm text-mist">
-                            <p className="text-white">{proof.fileName}</p>
-                            <p className="mt-1">Uploaded: {new Date(proof.uploadedAt).toLocaleString("en-IN")}</p>
+                            {proof ? <p className="break-all text-white">{proof.fileName}</p> : null}
+                            {savedProjectLink && !proof ? <p className="break-all text-white">{savedProjectLink}</p> : null}
+                            {proof?.uploadedAt ? <p className="mt-1">Uploaded: {new Date(proof.uploadedAt).toLocaleString("en-IN")}</p> : null}
                             <p className="mt-1">
-                              Status: {proof.status === "verified" ? "Verified successfully" : "Verification in progress"}
+                              {stepState.verificationStatus === STEP_VERIFICATION.DATA_SUBMITTED && "Submission received."}
+                              {stepState.verificationStatus === STEP_VERIFICATION.VERIFYING && (proof?.type === "project_link" || (!proof && savedProjectLink) ? "Verifying your project link..." : "Verifying your submission...")}
+                              {stepState.verificationStatus === STEP_VERIFICATION.VERIFIED && "Verification successful"}
                             </p>
-                            <p className="mt-1">Confidence: {proof.confidence}%</p>
+                            {proof?.confidence ? <p className="mt-1">Confidence: {proof.confidence}%</p> : null}
                           </div>
                         ) : null}
                       </div>
@@ -224,7 +392,7 @@ export default function RoadmapStepPage({
                           onClick={() => handleStartTask(task.id)}
                           className="w-full"
                         >
-                          {status === "not_started" ? "Start Task" : "Task Active"}
+                          {status === "not_started" ? "Start Task" : status === "completed" ? "Completed" : "Task Active"}
                         </GlowButton>
                         <input
                           ref={(node) => {
@@ -234,13 +402,26 @@ export default function RoadmapStepPage({
                           className="hidden"
                           onChange={(event) => handleProofUpload(task, event)}
                         />
-                        <GlowButton
-                          variant="ghost"
-                          onClick={() => fileInputRefs.current[task.id]?.click()}
-                          className="w-full"
-                        >
-                          Upload Proof
-                        </GlowButton>
+                        {stepState.verificationStatus === STEP_VERIFICATION.VERIFYING ? (
+                          <div className="rounded-3xl border border-cyan/20 bg-cyan/10 px-4 py-4 text-center text-sm text-cyan">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-cyan" />
+                              Verifying your submission...
+                            </span>
+                          </div>
+                        ) : stepState.completionStatus === STEP_COMPLETION.COMPLETED ? (
+                          <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-4 text-center text-sm text-emerald-200">
+                            Completed and locked
+                          </div>
+                        ) : (
+                          <GlowButton
+                            variant="ghost"
+                            onClick={() => fileInputRefs.current[task.id]?.click()}
+                            className="w-full"
+                          >
+                            {hasSubmittedData ? "Replace Proof" : "Upload Proof"}
+                          </GlowButton>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -261,27 +442,34 @@ export default function RoadmapStepPage({
               <p className="mt-3 text-sm text-white">
                 {phaseProgress.completed} of {phaseProgress.total} tasks completed in this module
               </p>
+              <p className="mt-3 text-sm text-white">Roadmap progress: {roadmapProgress.percentage}%</p>
               <p className="mt-4 text-sm leading-7 text-mist">
-                Complete each task with proof so the system can verify progress before unlocking the next phase.
+                Complete each task with proof or a verified project link so the system can unlock the next phase instantly.
               </p>
             </GlassPanel>
 
             <GlassPanel className="p-6">
               <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Navigation</p>
               <p className="mt-4 text-2xl font-semibold text-white">
-                {allTasksComplete ? "Module cleared" : "Finish this module"}
+                {allTasksComplete ? "Phase Completed" : "Finish this module"}
               </p>
               <p className="mt-3 text-sm leading-7 text-mist">
                 {allTasksComplete
-                  ? "You can now move forward to the next guided phase in your roadmap."
-                  : "Stay focused on this month until each task is verified. Progress is earned, not skipped."}
+                  ? stepIndex < roadmap.phases.length - 1
+                    ? "Unlocked. The next roadmap step is ready to start."
+                    : "All roadmap modules are complete. Job opportunities are now ready."
+                  : "Stay focused on this module until each task is verified. Progress is earned, not skipped."}
               </p>
               <GlowButton
                 className="mt-6 w-full"
-                onClick={onNextStep}
+                onClick={allTasksComplete ? onNextStep : undefined}
                 variant={allTasksComplete ? "primary" : "ghost"}
               >
-                {stepIndex < roadmap.phases.length - 1 ? "Continue to Next Step" : "Return to Roadmap Overview"}
+                {allTasksComplete
+                  ? stepIndex < roadmap.phases.length - 1
+                    ? "Continue to Next Step"
+                    : "Open Jobs Page"
+                  : "Complete Current Tasks First"}
               </GlowButton>
             </GlassPanel>
           </div>

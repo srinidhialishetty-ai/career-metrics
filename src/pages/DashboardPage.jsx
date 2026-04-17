@@ -64,9 +64,9 @@ export default function DashboardPage({
     appState.selectedRoadmapDomain || selectedDomains[0] || activeRole?.domainType || "tech",
     difficultyLevel,
   );
-  const taskStatuses = appState.taskStatuses || {};
-  const progress = getRoadmapProgress(roadmap, taskStatuses).percentage;
-  const nextTask = getNextIncompleteTask(roadmap, taskStatuses);
+  const stepStates = appState.stepStates || {};
+  const progress = getRoadmapProgress(roadmap, stepStates).percentage;
+  const nextTask = getNextIncompleteTask(roadmap, stepStates);
 
   const profileCards = [
     { label: copy.identity, value: user?.profile?.emailAddress || user?.usernameOrEmail },

@@ -1,7 +1,6 @@
 import GlassPanel from "../components/GlassPanel";
 import GlowButton from "../components/GlowButton";
 import SectionLabel from "../components/SectionLabel";
-import { formatSalaryRange } from "../lib/domainData";
 import {
   getMergedRoadmap,
   getNextIncompletePhaseIndex,
@@ -14,15 +13,17 @@ export default function RoadmapOverviewPage({
   role,
   roadmapDomain,
   difficultyLevel,
-  taskStatuses,
+  stepStates,
+  careerReadinessScore,
   onBack,
   onOpenStep,
   onSwitchPath,
+  onOpenJobs,
 }) {
   const roadmap = getMergedRoadmap(roadmapDomain, difficultyLevel);
-  const progress = getRoadmapProgress(roadmap, taskStatuses);
-  const nextPhaseIndex = getNextIncompletePhaseIndex(roadmap, taskStatuses);
-  const nextTask = getNextIncompleteTask(roadmap, taskStatuses);
+  const progress = getRoadmapProgress(roadmap, stepStates);
+  const nextPhaseIndex = getNextIncompletePhaseIndex(roadmap, stepStates);
+  const nextTask = getNextIncompleteTask(roadmap, stepStates);
 
   return (
     <div className="min-h-screen px-6 py-8 lg:px-10">
@@ -73,12 +74,10 @@ export default function RoadmapOverviewPage({
                   </p>
                 </div>
                 <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-xs uppercase tracking-[0.24em] text-cyan/65">Expected Compensation</p>
-                  <p className="mt-3 text-lg font-semibold text-white">
-                    {formatSalaryRange(role?.salaryMin || 0, role?.salaryMax || 0)}
-                  </p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-cyan/65">Career Readiness</p>
+                  <p className="mt-3 text-lg font-semibold text-white">{careerReadinessScore || progress.percentage}%</p>
                   <p className="mt-2 text-sm leading-7 text-mist">
-                    Estimated range for this simulation in the Indian market.
+                    Execution strength based on verified progress, project proof, and roadmap momentum.
                   </p>
                 </div>
               </div>
@@ -98,16 +97,22 @@ export default function RoadmapOverviewPage({
                   style={{ width: `${progress.percentage}%` }}
                 />
               </div>
-              <GlowButton className="mt-6 w-full" onClick={() => onOpenStep(nextPhaseIndex)}>
-                {progress.completed === 0 ? "Start Month 1" : "Open Current Module"}
-              </GlowButton>
+              {progress.percentage === 100 && onOpenJobs ? (
+                <GlowButton className="mt-6 w-full" onClick={onOpenJobs}>
+                  Open Jobs You Unlocked
+                </GlowButton>
+              ) : (
+                <GlowButton className="mt-6 w-full" onClick={() => onOpenStep(nextPhaseIndex)}>
+                  {progress.completed === 0 ? "Start Month 1" : "Open Current Module"}
+                </GlowButton>
+              )}
             </div>
           </div>
         </GlassPanel>
 
         <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
           {roadmap.phases.map((phase, index) => {
-            const phaseProgress = getPhaseProgress(phase, taskStatuses);
+            const phaseProgress = getPhaseProgress(phase, stepStates);
             const isCurrent = index === nextPhaseIndex;
 
             return (
@@ -119,12 +124,14 @@ export default function RoadmapOverviewPage({
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em] ${
-                      isCurrent
+                      progress.percentage === 100
+                        ? "border border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                        : isCurrent
                         ? "border border-cyan/25 bg-cyan/10 text-cyan"
                         : "border border-white/10 bg-white/[0.05] text-mist"
                     }`}
                   >
-                    {phaseProgress.percentage}% done
+                    {phaseProgress.percentage === 100 ? "Phase Completed" : `${phaseProgress.percentage}% done`}
                   </span>
                 </div>
                 <p className="mt-4 text-sm leading-7 text-mist">{phase.description}</p>
@@ -145,7 +152,11 @@ export default function RoadmapOverviewPage({
                   ))}
                 </div>
                 <GlowButton className="mt-6 w-full" onClick={() => onOpenStep(index)}>
-                  {isCurrent ? "Open Current Module" : `Go to ${phase.monthLabel}`}
+                  {phaseProgress.percentage === 100
+                    ? "Review Completed Phase"
+                    : isCurrent
+                      ? "Open Current Module"
+                      : `Go to ${phase.monthLabel}`}
                 </GlowButton>
               </GlassPanel>
             );

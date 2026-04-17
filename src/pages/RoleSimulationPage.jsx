@@ -11,6 +11,56 @@ function getGrowthLabel(score) {
   return "Measured";
 }
 
+function getDemandLabel(score) {
+  if (score >= 82) {
+    return {
+      label: "High",
+      body: "This role is seeing strong demand in the Indian market, especially for candidates with visible proof of execution.",
+    };
+  }
+
+  if (score >= 68) {
+    return {
+      label: "Medium",
+      body: "Demand is healthy, but standing out requires sharper projects and stronger proof than average applicants.",
+    };
+  }
+
+  return {
+    label: "Low",
+    body: "Demand exists, but growth is slower and role selection is more sensitive to portfolio quality.",
+  };
+}
+
+function getGrowthOutlook(score) {
+  if (score >= 82) return "Rising";
+  if (score >= 65) return "Stable";
+  return "Declining";
+}
+
+function getAutomationRisk(role) {
+  const value = role.riskScore ?? role.risk ?? 0;
+
+  if (value >= 56) {
+    return {
+      label: "High",
+      body: "Parts of this workflow are being automated quickly, so deeper problem solving and systems thinking matter more.",
+    };
+  }
+
+  if (value >= 38) {
+    return {
+      label: "Moderate",
+      body: "Routine work is vulnerable, but strong domain understanding and proof-backed projects still create resilience.",
+    };
+  }
+
+  return {
+    label: "Low",
+    body: "This path is more insulated because it depends on judgment, collaboration, or complex execution.",
+  };
+}
+
 export default function RoleSimulationPage({
   role,
   onBack,
@@ -19,6 +69,9 @@ export default function RoleSimulationPage({
   if (!role) {
     return null;
   }
+
+  const demand = getDemandLabel(role.growthScore);
+  const automationRisk = getAutomationRisk(role);
 
   return (
     <div className="min-h-screen px-6 py-8 lg:px-10">
@@ -78,6 +131,36 @@ export default function RoleSimulationPage({
               <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan/65">Match Strength</p>
                 <p className="mt-3 text-lg font-semibold text-white">{role.matchScore}%</p>
+              </div>
+            </div>
+          </GlassPanel>
+
+          <GlassPanel className="p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan/70">Market Intelligence</p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[1.25rem] border border-cyan/20 bg-[#07101f]/85 p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-cyan/65">Market Demand</p>
+                <p className="mt-3 text-lg font-semibold text-white">{demand.label}</p>
+                <p className="mt-2 text-sm leading-7 text-mist">{demand.body}</p>
+              </div>
+              <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-cyan/65">Competition Level</p>
+                <p className="mt-3 text-lg font-semibold text-white">{role.competition}</p>
+                <p className="mt-2 text-sm leading-7 text-mist">
+                  This role rewards proof-backed portfolios and consistent execution more than generic credential stacking.
+                </p>
+              </div>
+              <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-cyan/65">Growth Outlook</p>
+                <p className="mt-3 text-lg font-semibold text-white">{getGrowthOutlook(role.growthScore)}</p>
+                <p className="mt-2 text-sm leading-7 text-mist">
+                  The growth outlook reflects hiring momentum, compensation potential, and long-term relevance.
+                </p>
+              </div>
+              <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-cyan/65">Automation Risk</p>
+                <p className="mt-3 text-lg font-semibold text-white">{automationRisk.label}</p>
+                <p className="mt-2 text-sm leading-7 text-mist">{automationRisk.body}</p>
               </div>
             </div>
           </GlassPanel>

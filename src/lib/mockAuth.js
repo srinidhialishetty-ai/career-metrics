@@ -1,3 +1,5 @@
+import { getDerivedLegacyStepFields, normalizeStepState } from "./roadmapHelpers";
+
 const USERS_KEY = "career-metrics.mock-users";
 const SESSION_KEY = "career-metrics.mock-session";
 
@@ -8,8 +10,11 @@ const DEFAULT_APP_STATE = {
   riskPreference: "Medium",
   selectedRole: "Data Analyst",
   selectedRoadmapDomain: "tech",
-  taskStatuses: {},
-  proofUploads: {},
+  stepStates: {},
+  progressPercentage: 0,
+  careerReadinessScore: 0,
+  roadmapCompleted: false,
+  jobsUnlocked: false,
   navigation: {
     view: "dashboard",
     role: "Data Analyst",
@@ -34,6 +39,9 @@ const DEFAULT_TEST_USER = {
     createdAt: new Date().toISOString(),
     simulationTier: "Explorer",
     focusTrack: "AI Product Strategy",
+  },
+  appState: {
+    ...structuredClone(DEFAULT_APP_STATE),
   },
 };
 
@@ -76,9 +84,43 @@ export function getDefaultAppState() {
 }
 
 export function getUserAppState(user) {
-  return {
+  const rawAppState = {
     ...getDefaultAppState(),
     ...(user?.appState || {}),
+  };
+  const stepStates = Object.keys(rawAppState.stepStates || {}).length
+    ? rawAppState.stepStates
+    : Object.keys(rawAppState.taskStatuses || {}).length ||
+        Object.keys(rawAppState.proofUploads || {}).length ||
+        Object.keys(rawAppState.projectLinks || {}).length
+      ? Object.keys({
+          ...(rawAppState.taskStatuses || {}),
+          ...(rawAppState.proofUploads || {}),
+          ...(rawAppState.projectLinks || {}),
+        }).reduce((accumulator, taskId) => {
+          accumulator[taskId] = normalizeStepState({
+            projectLink: rawAppState.projectLinks?.[taskId] || "",
+            proofFile: rawAppState.proofUploads?.[taskId] || null,
+            verificationStatus:
+              rawAppState.taskStatuses?.[taskId] === "completed"
+                ? "VERIFIED"
+                : rawAppState.taskStatuses?.[taskId] === "verifying"
+                  ? "VERIFYING"
+                  : rawAppState.taskStatuses?.[taskId] === "in_progress"
+                    ? "DATA_SUBMITTED"
+                    : "IDLE",
+            completionStatus:
+              rawAppState.taskStatuses?.[taskId] === "completed" ? "COMPLETED" : "IDLE",
+          });
+          return accumulator;
+        }, {})
+      : {};
+  const legacyStepFields = getDerivedLegacyStepFields(stepStates);
+
+  return {
+    ...rawAppState,
+    stepStates,
+    ...legacyStepFields,
     navigation: {
       ...DEFAULT_APP_STATE.navigation,
       ...(user?.appState?.navigation || {}),
@@ -278,11 +320,19 @@ export function updateStoredUserAppState(userId, appStateUpdates) {
             ...appStateUpdates.navigation,
           };
 
+    const incomingStepStates = appStateUpdates.stepStates
+      ? Object.entries(appStateUpdates.stepStates).reduce((accumulator, [taskId, stepState]) => {
+          accumulator[taskId] = normalizeStepState(stepState);
+          return accumulator;
+        }, {})
+      : currentAppState.stepStates;
+
     updatedUser = {
       ...entry,
       appState: {
         ...currentAppState,
         ...appStateUpdates,
+        stepStates: incomingStepStates,
         navigation: nextNavigation,
       },
     };

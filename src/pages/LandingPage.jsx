@@ -40,25 +40,27 @@ export default function LandingPage({ onEnterSystem, copy }) {
 
       <section className="relative mx-auto grid min-h-[calc(100vh-92px)] max-w-7xl items-center gap-14 px-6 pb-24 pt-10 lg:grid-cols-[1.02fr_0.98fr] lg:px-10 lg:pb-28">
         <div className="max-w-3xl animate-rise">
-          <SectionLabel>{copy.heroEyebrow}</SectionLabel>
-          <h1 className="mt-8 max-w-4xl text-5xl font-semibold leading-[1.02] tracking-[-0.05em] text-white md:text-7xl">
+          <div className="motion-fade-up">
+            <SectionLabel>{copy.heroEyebrow}</SectionLabel>
+          </div>
+          <h1 className="motion-display mt-8 max-w-4xl text-5xl font-semibold leading-[1.02] tracking-[-0.05em] text-white md:text-7xl">
             {copy.heroTitle}
           </h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-mist">
+          <p className="motion-fade-up motion-delay-1 mt-7 max-w-2xl text-lg leading-8 text-mist">
             {copy.heroBody}
           </p>
-          <p className="mt-8 inline-flex rounded-full border border-aurora/30 bg-aurora/10 px-5 py-3 text-sm font-medium tracking-[0.18em] text-cyan shadow-[0_0_40px_rgba(124,92,255,0.18)]">
+          <p className="motion-tagline mt-8 inline-flex rounded-full border border-aurora/30 bg-aurora/10 px-5 py-3 text-sm font-medium tracking-[0.18em] text-cyan shadow-[0_0_40px_rgba(124,92,255,0.18)]">
             {copy.heroTagline}
           </p>
 
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+          <div className="motion-fade-up motion-delay-2 mt-10 flex flex-col gap-4 sm:flex-row">
             <GlowButton onClick={onEnterSystem} className="animate-pulse-glow">
               {copy.startSimulation}
             </GlowButton>
             <GlowButton variant="ghost">{copy.viewIntelligence}</GlowButton>
           </div>
 
-          <div className="mt-12 flex flex-wrap gap-8 text-sm text-mist">
+          <div className="motion-fade-up motion-delay-3 mt-12 flex flex-wrap gap-8 text-sm text-mist">
             <div>
               <p className="text-2xl font-semibold text-white">{copy.simulationsValue}</p>
               <p>{copy.simulationsLabel}</p>
@@ -70,7 +72,7 @@ export default function LandingPage({ onEnterSystem, copy }) {
           </div>
         </div>
 
-        <div className="relative min-h-[560px] animate-rise [animation-delay:140ms]">
+        <div className="motion-float-layer relative min-h-[560px] animate-rise [animation-delay:140ms]">
           <div className="absolute inset-x-10 top-6 h-40 rounded-full bg-[radial-gradient(circle,rgba(124,92,255,0.22),transparent_65%)] blur-3xl" />
 
           <GlassPanel className="relative mx-auto w-full max-w-[34rem] overflow-hidden p-6 md:p-7">
@@ -145,7 +147,7 @@ export default function LandingPage({ onEnterSystem, copy }) {
             </div>
           </GlassPanel>
 
-          <AmbientCard className="right-0 top-10 hidden w-56 animate-drift xl:block">
+          <AmbientCard className="motion-float-subtle right-0 top-10 hidden w-56 animate-drift xl:block">
             <p className="text-xs uppercase tracking-[0.28em] text-cyan/70">Market Pulse</p>
             <div className="mt-4 flex items-end gap-2">
               {[32, 48, 62, 44, 80].map((height) => (
