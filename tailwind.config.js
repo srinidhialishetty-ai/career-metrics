@@ -46,11 +46,11 @@ export default {
         },
       },
       animation: {
-        float: "float 6s ease-in-out infinite",
-        "pulse-glow": "pulseGlow 2.8s ease-in-out infinite",
-        drift: "drift 10s ease-in-out infinite",
-        sweep: "sweep 12s ease infinite",
-        rise: "rise 0.7s ease-out forwards",
+        float: "none",
+        "pulse-glow": "none",
+        drift: "none",
+        sweep: "none",
+        rise: "rise 0.28s ease-out forwards",
       },
       borderRadius: {
         "4xl": "2rem",

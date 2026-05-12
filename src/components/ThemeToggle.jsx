@@ -7,7 +7,6 @@ export default function ThemeToggle({ themeMode, onToggle }) {
     <button
       type="button"
       onClick={onToggle}
-      data-magnetic
       className="motion-button theme-toggle fixed right-6 top-6 z-[70] inline-flex items-center gap-3 rounded-full border border-white/12 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(5,8,22,0.25)] backdrop-blur-2xl lg:right-10"
       aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
     >

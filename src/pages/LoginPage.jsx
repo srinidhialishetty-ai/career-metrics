@@ -26,11 +26,12 @@ const casteOptions = [
 export default function LoginPage({ onBack, onSuccess, copy }) {
   const [mode, setMode] = useState("existing");
   const [existingForm, setExistingForm] = useState({
-    identity: "",
+    username: "",
     password: "",
   });
   const [newUserForm, setNewUserForm] = useState({
     fullName: "",
+    username: "",
     emailAddress: "",
     mobileNumber: "",
     age: "",
@@ -78,28 +79,39 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
     };
   }
 
-  function handleExistingSubmit(event) {
+  async function handleExistingSubmit(event) {
     event.preventDefault();
 
     const nextErrors = {
-      identity: existingForm.identity.trim() ? "" : copy.existingEmpty,
+      username: existingForm.username.trim() ? "" : copy.existingEmpty,
       password: existingForm.password.trim() ? "" : copy.existingEmpty,
     };
 
-    if (nextErrors.identity || nextErrors.password) {
+    if (nextErrors.username || nextErrors.password) {
       setExistingErrors(nextErrors);
       setStatus("idle");
       setStatusMessage(copy.existingEmpty);
       return;
     }
 
-    const result = loginMockUser(existingForm.identity, existingForm.password);
+    setStatus("loading");
+    setStatusMessage(copy.checkingCredentials);
+
+    let result;
+
+    try {
+      result = await loginMockUser(existingForm.username, existingForm.password);
+    } catch {
+      setStatus("idle");
+      setStatusMessage(copy.authUnavailable);
+      return;
+    }
 
     if (!result.ok) {
       setStatus("idle");
       setStatusMessage(result.code === "no_account" ? copy.noAccount : copy.wrongPassword);
       setExistingErrors({
-        identity: result.code === "no_account" ? copy.noAccount : "",
+        username: result.code === "no_account" ? copy.noAccount : "",
         password: result.code === "wrong_password" ? copy.wrongPassword : "",
       });
       return;
@@ -115,12 +127,13 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
     }, 900);
   }
 
-  function handleNewUserSubmit(event) {
+  async function handleNewUserSubmit(event) {
     event.preventDefault();
 
     const nextErrors = {
       fullName: newUserForm.fullName.trim() ? "" : copy.fullNameRequired,
-      emailAddress: newUserForm.emailAddress.trim() ? "" : copy.emailRequired,
+      username: newUserForm.username.trim() ? "" : copy.usernameRequired,
+      emailAddress: "",
       mobileNumber: newUserForm.mobileNumber.length === 10 ? "" : copy.mobileRequired,
       age:
         newUserForm.age.trim() && Number(newUserForm.age) >= 12 && Number(newUserForm.age) <= 100
@@ -149,14 +162,26 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
       return;
     }
 
-    const result = createMockProfile(newUserForm);
+    setStatus("loading");
+    setStatusMessage(copy.creatingAccount);
+
+    let result;
+
+    try {
+      result = await createMockProfile(newUserForm);
+    } catch {
+      setStatus("idle");
+      setStatusMessage(copy.authUnavailable);
+      return;
+    }
 
     if (!result.ok) {
       setStatus("idle");
-      setStatusMessage(copy.duplicateEmail);
+      setStatusMessage(result.code === "username_exists" ? copy.duplicateUsername : copy.duplicateEmail);
       setNewUserErrors((current) => ({
         ...current,
-        emailAddress: copy.duplicateEmail,
+        [result.code === "username_exists" ? "username" : "emailAddress"]:
+          result.code === "username_exists" ? copy.duplicateUsername : copy.duplicateEmail,
       }));
       return;
     }
@@ -201,7 +226,7 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
               {trustSignals.map((signal) => (
                 <div
                   key={signal}
-                  className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan/35"
+                  className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 transition duration-300 ease-out hover:border-cyan/35"
                 >
                   <div className="h-9 w-9 rounded-2xl bg-[linear-gradient(135deg,rgba(124,92,255,0.28),rgba(69,208,255,0.24))]" />
                   <p className="mt-4 text-sm leading-7 text-white">{signal}</p>
@@ -273,13 +298,13 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
 
                   <form className="mt-6 space-y-4" onSubmit={handleExistingSubmit}>
                     <FloatingInput
-                      id="identity"
-                      label={copy.emailOrUsername}
+                      id="username"
+                      label={copy.username}
                       type="text"
-                      value={existingForm.identity}
-                      onChange={updateExistingField("identity")}
+                      value={existingForm.username}
+                      onChange={updateExistingField("username")}
                       autoComplete="username"
-                      error={existingErrors.identity}
+                      error={existingErrors.username}
                     />
                     <FloatingInput
                       id="password"
@@ -343,6 +368,15 @@ export default function LoginPage({ onBack, onSuccess, copy }) {
                             error={newUserErrors.fullName}
                           />
                         </div>
+                        <FloatingInput
+                          id="usernameNew"
+                          label={copy.usernameLabel}
+                          type="text"
+                          value={newUserForm.username}
+                          onChange={updateNewUserField("username")}
+                          autoComplete="username"
+                          error={newUserErrors.username}
+                        />
                         <FloatingInput
                           id="emailAddress"
                           label={copy.emailAddress}

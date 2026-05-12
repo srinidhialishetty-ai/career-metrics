@@ -109,7 +109,7 @@ export default function LandingPage({ onEnterSystem, copy }) {
                 {[copy.compensation, copy.demandIndex, copy.skillAdvantage].map((item, index) => (
                   <div
                     key={item}
-                    className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 transition duration-300 hover:-translate-y-1 hover:border-aurora/40"
+                    className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 transition duration-300 ease-out hover:border-aurora/40"
                   >
                     <p className="text-sm text-mist">{item}</p>
                     <p className="mt-3 text-2xl font-semibold text-white">
@@ -174,7 +174,7 @@ export default function LandingPage({ onEnterSystem, copy }) {
             {engineSteps.map((step) => (
               <GlassPanel
                 key={step.title}
-                className="group p-6 transition duration-300 hover:-translate-y-2 hover:border-aurora/40"
+                className="group p-6 transition duration-300 ease-out hover:border-aurora/40"
               >
                 <div className="mb-5 h-10 w-10 rounded-2xl bg-[linear-gradient(135deg,rgba(124,92,255,0.28),rgba(69,208,255,0.24))]" />
                 <p className="text-xl font-semibold text-white">{step.title}</p>

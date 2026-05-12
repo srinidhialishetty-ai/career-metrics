@@ -2,6 +2,8 @@ import { getDerivedLegacyStepFields, normalizeStepState } from "./roadmapHelpers
 
 const USERS_KEY = "career-metrics.mock-users";
 const SESSION_KEY = "career-metrics.mock-session";
+const PASSWORD_ALGORITHM = "PBKDF2-SHA256";
+const PASSWORD_ITERATIONS = 150000;
 
 const DEFAULT_APP_STATE = {
   selectedDomains: [],
@@ -22,14 +24,15 @@ const DEFAULT_APP_STATE = {
   },
 };
 
-// Default test user for development
 const DEFAULT_TEST_USER = {
   id: "test_user_001",
-  identity: "test@example.com",
-  usernameOrEmail: "test@example.com",
+  identity: "testuser",
+  usernameKey: "testuser",
+  usernameOrEmail: "testuser",
   password: "test123",
   profile: {
     fullName: "Test User",
+    username: "testuser",
     emailAddress: "test@example.com",
     mobileNumber: "9876543210",
     age: "25",
@@ -76,7 +79,163 @@ function writeJson(key, value) {
 }
 
 function sanitizeIdentity(identity) {
-  return identity.trim().toLowerCase();
+  return String(identity || "").trim().toLowerCase();
+}
+
+function getUsernameKey(username) {
+  return sanitizeIdentity(username).replace(/\s+/g, "");
+}
+
+function getEmailKey(email) {
+  return sanitizeIdentity(email);
+}
+
+function getDisplayUsername(username) {
+  return String(username || "").trim();
+}
+
+function createId(prefix) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function getRandomBytes(length) {
+  const bytes = new Uint8Array(length);
+
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes);
+    return bytes;
+  }
+
+  for (let index = 0; index < length; index += 1) {
+    bytes[index] = Math.floor(Math.random() * 256);
+  }
+
+  return bytes;
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+async function derivePasswordHash(password, salt) {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("Secure password hashing is not available in this browser.");
+  }
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: PASSWORD_ITERATIONS,
+      hash: "SHA-256",
+    },
+    key,
+    256,
+  );
+
+  return bytesToBase64(new Uint8Array(bits));
+}
+
+async function hashPassword(password) {
+  const salt = getRandomBytes(16);
+  const hash = await derivePasswordHash(password, salt);
+
+  return {
+    algorithm: PASSWORD_ALGORITHM,
+    iterations: PASSWORD_ITERATIONS,
+    salt: bytesToBase64(salt),
+    hash,
+  };
+}
+
+async function verifyPassword(user, password) {
+  if (user?.passwordCredential?.hash && user?.passwordCredential?.salt) {
+    const hash = await derivePasswordHash(password, base64ToBytes(user.passwordCredential.salt));
+
+    return hash === user.passwordCredential.hash;
+  }
+
+  return user?.password === password;
+}
+
+function buildFallbackUsername(user) {
+  const seededUsername = user?.profile?.username || user?.usernameOrEmail || "";
+  const emailLocalPart = String(user?.profile?.emailAddress || "")
+    .split("@")[0]
+    .trim();
+  const preferred = seededUsername || emailLocalPart || `user${String(user?.id || "").replace(/\D/g, "").slice(-4)}`;
+  return getDisplayUsername(preferred);
+}
+
+function normalizeStoredUser(user) {
+  if (!user) {
+    return user;
+  }
+
+  const username = buildFallbackUsername(user);
+  const usernameKey = getUsernameKey(user.usernameKey || user.identity || username);
+  const emailAddress = String(user?.profile?.emailAddress || "").trim();
+
+  return {
+    ...user,
+    identity: usernameKey,
+    usernameKey,
+    usernameOrEmail: getDisplayUsername(user.usernameOrEmail || username),
+    profile: {
+      ...user.profile,
+      username: getDisplayUsername(user.profile?.username || username),
+      emailAddress,
+    },
+  };
+}
+
+function getPersistableUsers(users) {
+  return users
+    .map(normalizeStoredUser)
+    .filter((entry) => entry.id !== DEFAULT_TEST_USER.id)
+    .reduce((uniqueUsers, user) => {
+      if (!uniqueUsers.some((entry) => entry.usernameKey === user.usernameKey)) {
+        uniqueUsers.push(user);
+      }
+
+      return uniqueUsers;
+    }, []);
+}
+
+function persistUsers(users) {
+  writeJson(USERS_KEY, getPersistableUsers(users));
+}
+
+function findUserById(userId) {
+  return getStoredUsers().find((entry) => entry.id === userId);
 }
 
 export function getDefaultAppState() {
@@ -133,7 +292,6 @@ export function isProfileComplete(user) {
 
   return Boolean(
     profile?.fullName &&
-      profile?.emailAddress &&
       profile?.mobileNumber &&
       profile?.age &&
       profile?.preferredLanguage,
@@ -141,17 +299,67 @@ export function isProfileComplete(user) {
 }
 
 export function getStoredUsers() {
-  const users = readJson(USERS_KEY, []);
-  // Always include default test user for development
-  const hasTestUser = users.some(u => u.identity === DEFAULT_TEST_USER.identity);
-  if (!hasTestUser) {
-    return [...users, DEFAULT_TEST_USER];
-  }
-  return users;
+  const users = readJson(USERS_KEY, []).map(normalizeStoredUser);
+  const hasTestUser = users.some((user) => user.usernameKey === DEFAULT_TEST_USER.usernameKey);
+  const normalizedUsers = hasTestUser
+    ? users
+    : [...users, DEFAULT_TEST_USER].map(normalizeStoredUser);
+
+  return normalizedUsers.reduce((uniqueUsers, user) => {
+    const existingIndex = uniqueUsers.findIndex((entry) => entry.usernameKey === user.usernameKey);
+
+    if (existingIndex === -1) {
+      uniqueUsers.push(user);
+      return uniqueUsers;
+    }
+
+    if (user.id !== DEFAULT_TEST_USER.id) {
+      uniqueUsers[existingIndex] = {
+        ...uniqueUsers[existingIndex],
+        ...user,
+        appState: {
+          ...getUserAppState(uniqueUsers[existingIndex]),
+          ...(user.appState || {}),
+        },
+      };
+    }
+
+    return uniqueUsers;
+  }, []);
 }
 
 export function getStoredSession() {
-  return readJson(SESSION_KEY, null);
+  const session = readJson(SESSION_KEY, null);
+
+  if (!session?.loggedIn || !session.userId) {
+    return null;
+  }
+
+  if (session.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
+    clearStoredSession();
+    return null;
+  }
+
+  const user = findUserById(session.userId);
+
+  if (!user) {
+    return null;
+  }
+
+  if (!session.sessionToken) {
+    const upgradedSession = {
+      ...session,
+      username: user.profile?.username || user.usernameOrEmail,
+      usernameKey: user.usernameKey,
+      sessionToken: createId("session"),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+    };
+
+    writeJson(SESSION_KEY, upgradedSession);
+    return upgradedSession;
+  }
+
+  return session;
 }
 
 export function clearStoredSession() {
@@ -182,8 +390,11 @@ function createSession(user, authMode = "existing") {
   const appState = getUserAppState(user);
   const session = {
     userId: user.id,
-    identity: user.identity,
+    username: user.profile?.username || user.usernameOrEmail,
+    usernameKey: user.usernameKey,
+    sessionToken: createId("session"),
     loggedInAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
     loggedIn: true,
     preferredLanguage: user?.profile?.preferredLanguage || "en",
     authMode,
@@ -195,23 +406,33 @@ function createSession(user, authMode = "existing") {
 }
 
 function findUserByIdentity(identity) {
-  const normalizedIdentity = sanitizeIdentity(identity);
+  const normalizedIdentity = getUsernameKey(identity);
 
   return getStoredUsers().find((entry) => {
-    const fullName = sanitizeIdentity(entry?.profile?.fullName || "");
-    const email = sanitizeIdentity(entry?.profile?.emailAddress || "");
-    const username = sanitizeIdentity(entry?.usernameOrEmail || "");
+    const username = getUsernameKey(entry?.profile?.username || entry?.usernameOrEmail || "");
 
-    return (
-      normalizedIdentity === entry.identity ||
-      normalizedIdentity === email ||
-      normalizedIdentity === username ||
-      normalizedIdentity === fullName
-    );
+    return normalizedIdentity === entry.usernameKey || normalizedIdentity === entry.identity || normalizedIdentity === username;
   });
 }
 
-export function loginMockUser(identity, password) {
+async function upgradeLegacyPassword(user, password) {
+  if (!user?.password || user.passwordCredential?.hash) {
+    return user;
+  }
+
+  const users = getStoredUsers();
+  const upgradedUser = {
+    ...user,
+    password: undefined,
+    passwordCredential: await hashPassword(password),
+  };
+
+  persistUsers(users.map((entry) => (entry.id === user.id ? upgradedUser : entry)));
+
+  return upgradedUser;
+}
+
+export async function loginMockUser(identity, password) {
   const user = findUserByIdentity(identity);
 
   if (!user) {
@@ -221,26 +442,47 @@ export function loginMockUser(identity, password) {
     };
   }
 
-  if (user.password !== password) {
+  const passwordMatches = await verifyPassword(user, password);
+
+  if (!passwordMatches) {
     return {
       ok: false,
       code: "wrong_password",
     };
   }
 
+  const authenticatedUser = await upgradeLegacyPassword(user, password);
+
   return {
     ok: true,
-    user,
-    session: createSession(user, "existing"),
+    user: authenticatedUser,
+    session: createSession(authenticatedUser, "existing"),
   };
 }
 
-export function createMockProfile(profileData) {
-  const normalizedIdentity = sanitizeIdentity(profileData.emailAddress);
+export async function createMockProfile(profileData) {
+  const displayUsername = getDisplayUsername(profileData.username);
+  const usernameKey = getUsernameKey(displayUsername);
+  const normalizedEmail = getEmailKey(profileData.emailAddress);
   const users = getStoredUsers();
-  const existingUser = users.find((entry) => entry.identity === normalizedIdentity);
+  const existingUser = users.find(
+    (entry) =>
+      entry.usernameKey === usernameKey ||
+      entry.identity === usernameKey ||
+      getUsernameKey(entry?.profile?.username || "") === usernameKey,
+  );
+  const existingEmail = normalizedEmail
+    ? users.find((entry) => getEmailKey(entry?.profile?.emailAddress || "") === normalizedEmail)
+    : null;
 
   if (existingUser) {
+    return {
+      ok: false,
+      code: "username_exists",
+    };
+  }
+
+  if (existingEmail) {
     return {
       ok: false,
       code: "email_exists",
@@ -248,13 +490,15 @@ export function createMockProfile(profileData) {
   }
 
   const user = {
-    id: `user_${Date.now()}`,
-    identity: normalizedIdentity,
-    usernameOrEmail: profileData.emailAddress.trim(),
-    password: profileData.password,
+    id: createId("user"),
+    identity: usernameKey,
+    usernameKey,
+    usernameOrEmail: displayUsername,
+    passwordCredential: await hashPassword(profileData.password),
     profile: {
       fullName: profileData.fullName.trim(),
-      emailAddress: profileData.emailAddress.trim(),
+      username: displayUsername,
+      emailAddress: String(profileData.emailAddress || "").trim(),
       mobileNumber: profileData.mobileNumber.trim(),
       age: profileData.age.trim(),
       casteCategory: profileData.casteCategory,
@@ -267,7 +511,7 @@ export function createMockProfile(profileData) {
     appState: getDefaultAppState(),
   };
 
-  writeJson(USERS_KEY, [...users, user]);
+  persistUsers([...users, normalizeStoredUser(user)]);
 
   return {
     ok: true,
@@ -297,7 +541,7 @@ export function updateStoredUserProfile(userId, profileUpdates) {
     return updatedUser;
   });
 
-  writeJson(USERS_KEY, nextUsers);
+  persistUsers(nextUsers);
 
   return updatedUser;
 }
@@ -340,7 +584,7 @@ export function updateStoredUserAppState(userId, appStateUpdates) {
     return updatedUser;
   });
 
-  writeJson(USERS_KEY, nextUsers);
+  persistUsers(nextUsers);
 
   const session = getStoredSession();
   if (session?.userId === userId && updatedUser) {
@@ -373,7 +617,7 @@ export function updateUserPreferredLanguage(userId, preferredLanguage) {
     return updatedUser;
   });
 
-  writeJson(USERS_KEY, nextUsers);
+  persistUsers(nextUsers);
 
   const session = getStoredSession();
   if (session?.userId === userId) {

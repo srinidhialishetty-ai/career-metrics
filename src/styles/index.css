@@ -107,18 +107,17 @@ body {
 }
 
 .page-stage {
-  animation: page-enter 440ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: page-enter 180ms ease-out;
 }
 
 .motion-button {
   position: relative;
   overflow: hidden;
-  transform: translate3d(var(--magnetic-x, 0), var(--magnetic-y, 0), 0);
   transition:
-    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 220ms ease,
-    border-color 220ms ease,
-    background-color 220ms ease;
+    transform 180ms ease-out,
+    box-shadow 180ms ease-out,
+    border-color 180ms ease-out,
+    background-color 180ms ease-out;
 }
 
 .motion-button::before {
@@ -127,37 +126,34 @@ body {
   inset: 1px;
   border-radius: inherit;
   background: linear-gradient(100deg, transparent 10%, rgba(255, 255, 255, 0.16) 50%, transparent 90%);
-  transform: translateX(-130%);
-  transition: transform 420ms ease;
+  opacity: 0;
+  transform: translateX(-30%);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
 }
 
 .motion-button:hover {
-  transform: translate3d(var(--magnetic-x, 0), calc(var(--magnetic-y, 0) - 2px), 0) scale(1.04);
-  box-shadow: 0 18px 44px rgba(69, 208, 255, 0.14), 0 0 0 1px rgba(69, 208, 255, 0.12);
+  transform: translateY(-1px) scale(1.005);
+  box-shadow: 0 8px 20px rgba(69, 208, 255, 0.08), 0 0 0 1px rgba(69, 208, 255, 0.06);
 }
 
 .motion-button:hover::before {
-  transform: translateX(130%);
+  opacity: 0.35;
+  transform: translateX(20%);
 }
 
 .motion-button:active {
-  transform: translate3d(var(--magnetic-x, 0), var(--magnetic-y, 0), 0) scale(0.98);
-  box-shadow: 0 10px 24px rgba(69, 208, 255, 0.1);
+  transform: translateY(0) scale(0.995);
+  box-shadow: 0 6px 16px rgba(69, 208, 255, 0.08);
 }
 
 .motion-panel {
   position: relative;
   overflow: hidden;
-  transform:
-    perspective(1200px)
-    rotateX(var(--tilt-x, 0deg))
-    rotateY(var(--tilt-y, 0deg))
-    translate3d(var(--magnetic-x, 0), var(--magnetic-y, 0), 0);
   transition:
-    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 240ms ease,
-    border-color 240ms ease,
-    background-color 240ms ease;
+    transform 220ms ease-out,
+    box-shadow 220ms ease-out,
+    border-color 220ms ease-out,
+    background-color 220ms ease-out;
 }
 
 .motion-panel::before {
@@ -168,57 +164,58 @@ body {
     radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.12), transparent 32%),
     linear-gradient(135deg, rgba(124, 92, 255, 0.08), transparent 40%, rgba(69, 208, 255, 0.08));
   opacity: 0;
-  transition: opacity 260ms ease;
+  transition: opacity 220ms ease-out;
 }
 
 .motion-panel:hover {
-  border-color: rgba(69, 208, 255, 0.24);
-  box-shadow: 0 24px 60px rgba(5, 8, 22, 0.42), 0 0 32px rgba(69, 208, 255, 0.08);
+  border-color: rgba(69, 208, 255, 0.18);
+  transform: translateY(-1px) scale(1.002);
+  box-shadow: 0 12px 24px rgba(5, 8, 22, 0.2), 0 0 14px rgba(69, 208, 255, 0.03);
 }
 
 .motion-panel:hover::before {
-  opacity: 1;
+  opacity: 0.34;
 }
 
 .motion-display {
-  animation: display-rise 760ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: display-rise 220ms ease-out;
 }
 
 .motion-tagline {
-  animation: tagline-drift 4.2s ease-in-out infinite;
+  animation: none;
 }
 
 .motion-fade-up {
   opacity: 0;
-  transform: translateY(18px);
-  animation: fade-up 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform: translateY(6px);
+  animation: fade-up 200ms ease-out forwards;
 }
 
 .motion-delay-1 {
-  animation-delay: 90ms;
+  animation-delay: 35ms;
 }
 
 .motion-delay-2 {
-  animation-delay: 170ms;
+  animation-delay: 70ms;
 }
 
 .motion-delay-3 {
-  animation-delay: 260ms;
+  animation-delay: 105ms;
 }
 
 .motion-float-layer {
-  animation: float-layer 5.8s ease-in-out infinite;
+  animation: none;
 }
 
 .motion-float-subtle {
-  animation: float-subtle 4.6s ease-in-out infinite;
+  animation: none;
 }
 
 .motion-link {
   position: relative;
   display: inline-flex;
   width: fit-content;
-  transition: color 220ms ease;
+  transition: color 160ms ease;
 }
 
 .motion-link::after {
@@ -231,7 +228,7 @@ body {
   transform: scaleX(0);
   transform-origin: left;
   background: linear-gradient(90deg, rgba(69, 208, 255, 0.9), rgba(124, 92, 255, 0.9));
-  transition: transform 240ms ease;
+  transition: transform 160ms ease;
 }
 
 .motion-link:hover::after,
@@ -242,33 +239,33 @@ body {
 .motion-input {
   background: var(--field-bg);
   transition:
-    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 220ms ease,
-    border-color 220ms ease,
-    background-color 220ms ease;
+    transform 140ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
 }
 
 .motion-input:focus {
   background: var(--field-bg-focus);
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
 }
 
 .feedback-panel-card {
-  animation: reward-enter 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: reward-enter 220ms ease-out;
 }
 
 .feedback-panel-bottom .feedback-panel-card {
-  animation: toast-enter 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: toast-enter 180ms ease-out;
 }
 
 .feedback-check {
-  animation: check-pop 420ms cubic-bezier(0.2, 0.9, 0.25, 1.35);
-  box-shadow: 0 0 20px currentColor;
+  animation: check-pop 220ms ease-out;
+  box-shadow: 0 0 12px currentColor;
 }
 
 .progress-motion,
 .progress-motion > div {
-  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 220ms ease;
 }
 
 .theme-toggle {
@@ -286,22 +283,34 @@ body {
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
   transform: translateX(-100%);
-  animation: shimmer 1.3s ease-in-out infinite;
+  animation: none;
 }
 
 .chart-bar {
   transform-origin: bottom;
-  animation: grow-bar 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: grow-bar 300ms ease-out;
 }
 
 .reward-card {
-  animation: reward-enter 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: reward-enter 180ms ease-out;
+}
+
+.animate-rise {
+  animation-duration: 180ms !important;
+}
+
+.animate-pulse,
+.animate-pulse-glow,
+.animate-drift,
+.animate-sweep,
+.animate-float {
+  animation: none !important;
 }
 
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(4px);
   }
 
   to {
@@ -313,14 +322,8 @@ body {
 @keyframes display-rise {
   0% {
     opacity: 0;
-    transform: translateY(24px) scale(0.98);
-    filter: blur(8px);
-  }
-
-  70% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.01);
-    filter: blur(0);
+    transform: translateY(6px);
+    filter: blur(2px);
   }
 
   100% {
@@ -333,7 +336,7 @@ body {
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(6px);
   }
 
   to {
@@ -342,43 +345,10 @@ body {
   }
 }
 
-@keyframes tagline-drift {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-2px);
-  }
-}
-
-@keyframes float-layer {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-
-  50% {
-    transform: translateY(-8px) rotate(-0.45deg);
-  }
-}
-
-@keyframes float-subtle {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
 @keyframes grow-bar {
   from {
-    transform: scaleY(0.22);
-    opacity: 0.35;
+    transform: scaleY(0.8);
+    opacity: 0.75;
   }
 
   to {
@@ -390,36 +360,31 @@ body {
 @keyframes reward-enter {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.98);
+    transform: translateY(8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 @keyframes toast-enter {
   from {
     opacity: 0;
-    transform: translate(-50%, 24px) scale(0.98);
+    transform: translate(-50%, 8px);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, 0) scale(1);
+    transform: translate(-50%, 0);
   }
 }
 
 @keyframes check-pop {
   0% {
-    transform: scale(0.3);
+    transform: scale(0.85);
     opacity: 0;
-  }
-
-  60% {
-    transform: scale(1.12);
-    opacity: 1;
   }
 
   100% {
